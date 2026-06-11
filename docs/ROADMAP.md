@@ -93,8 +93,6 @@
   overlapping runs (✅ 2026-06-11)
 
 ### Near term (hygiene — next up, in order)
-- [ ] **First commit & repo hygiene** — version the repo (done as of the commit
-  introducing this line); user pushes to remote
 - [ ] **Backups** — nightly launchd job: `pg_dump` of the `knowledge` DB
   (semantic layer = hours of Opus extraction) + vault archive copy. The vault
   is the canon: losing it loses everything
