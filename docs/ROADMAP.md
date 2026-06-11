@@ -107,9 +107,12 @@
 - [ ] **`origin: agent` provenance on semantic objects** — mark graph objects
   extracted from agent notes so agents can weigh agent-sourced knowledge vs
   human-sourced (echo-chamber protection)
-- [ ] **Analysis-update mechanism** — redesign of the old repo-diff script
-  (pull repos, diff master vs recorded analysis, update vault notes); design
-  pending (owner has a better idea than the export-cache approach)
+- [x] **Analysis-update mechanism** — implemented as a private script
+  (`scripts/local/`, gitignored — tied to the owner's org setup): hourly
+  batches walk service notes, compare the note's recorded analysis commit
+  against the repo's GitHub head (no local clones), an LLM judges the diff and
+  applies surgical audited vault edits; the commit marker is always bumped.
+  All services re-checked roughly daily (✅ 2026-06-11)
 - [ ] **Plugin for Paperclip** — expose the mesh to the Paperclip agent control
   plane: a plugin wrapping the Knowledge API (search/context/get/impact/remember)
   so Paperclip-orchestrated agents (Developer, Coder, CTO pipeline) share the
