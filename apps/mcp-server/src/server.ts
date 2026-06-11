@@ -128,6 +128,24 @@ server.registerTool(
 );
 
 server.registerTool(
+  "knowledge_changes",
+  {
+    description:
+      "Call this to see WHAT CHANGED in the shared memory recently: agent edits of human notes (who, why, when — e.g. automatic platform-analysis updates) and notes created/updated in the vault. Use for questions like 'what's new', 'which services were updated lately', 'did anything change in X since last week'.",
+    inputSchema: {
+      days: z.number().int().min(1).max(90).optional().describe("Look-back window in days (default 7)"),
+      limit: z.number().int().min(1).max(200).optional().describe("Max entries per list (default 30)"),
+    },
+  },
+  async ({ days, limit }) => {
+    const params = new URLSearchParams();
+    if (days) params.set("days", String(days));
+    if (limit) params.set("limit", String(limit));
+    return asText(await callApi(`/changes?${params}`));
+  }
+);
+
+server.registerTool(
   "knowledge_update_note",
   {
     description:

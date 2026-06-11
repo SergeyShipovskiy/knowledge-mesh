@@ -202,6 +202,15 @@ notes. → `201 {"status": "proposed", "path": …}`
 
 ---
 
+### `GET /changes?days=<n>&limit=<n>`
+
+"What's new in the memory": recent agent edits of human notes (who, why,
+when, reverted or not — from the `note_edits` audit log) plus notes
+created/updated in the vault within the window (default 7 days). Backs the
+`knowledge_changes` MCP tool.
+
+---
+
 ### `POST /note/update` / `POST /note/undo` / `GET /note/history`
 
 Audited agent edits of **human notes** — the controlled exception to

@@ -251,6 +251,32 @@ app.post<{ Body: { path?: string; agent?: string } }>(
   }
 );
 
+app.get<{ Querystring: { days?: string; limit?: string } }>(
+  "/changes",
+  async (request) => {
+    const days = Math.min(Number(request.query.days ?? 7), 90);
+    const limit = Math.min(Number(request.query.limit ?? 30), 200);
+
+    const { rows: agentEdits } = await pool.query(
+      `SELECT path, agent, reason, edit_kind, created_at, reverted_at IS NOT NULL AS reverted
+       FROM note_edits
+       WHERE created_at > now() - ($1 || ' days')::interval
+       ORDER BY created_at DESC LIMIT $2`,
+      [days, limit]
+    );
+
+    const { rows: changedNotes } = await pool.query(
+      `SELECT path, title, updated_at, created_at = updated_at AS is_new
+       FROM documents
+       WHERE updated_at > now() - ($1 || ' days')::interval
+       ORDER BY updated_at DESC LIMIT $2`,
+      [days, limit]
+    );
+
+    return { days, agent_edits: agentEdits, changed_notes: changedNotes };
+  }
+);
+
 app.get<{ Querystring: { path?: string } }>(
   "/note/history",
   async (request, reply) => {
