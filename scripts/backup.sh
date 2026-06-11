@@ -72,7 +72,7 @@ if [ -z "$REMOTE" ] && command -v rclone >/dev/null 2>&1 \
   REMOTE="gdrive:coremem-backups"
 fi
 if [ -n "$REMOTE" ] && command -v rclone >/dev/null 2>&1; then
-  if rclone sync "$BACKUP_DIR" "$REMOTE" --exclude '.last-success' \
+  if rclone sync "$BACKUP_DIR" "$REMOTE" --exclude '.last-success' --exclude '.rclone-errors.log' \
        --transfers 2 --timeout 5m 2>>"$BACKUP_DIR/.rclone-errors.log"; then
     echo "[backup] offsite: synced to $REMOTE"
   else
