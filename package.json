@@ -1,0 +1,30 @@
+{
+  "name": "knowledge-mesh",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "migrate": "pnpm --filter @knowledge-mesh/shared migrate",
+    "index": "pnpm --filter @knowledge-mesh/indexer start",
+    "index:watch": "pnpm --filter @knowledge-mesh/indexer watch",
+    "extract": "pnpm --filter @knowledge-mesh/extractor start",
+    "golden": "tsx scripts/golden.ts",
+    "moc": "tsx scripts/generate-moc.ts",
+    "api": "pnpm --filter @knowledge-mesh/api start",
+    "mcp": "pnpm --filter @knowledge-mesh/mcp-server start"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^20.16.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "onnxruntime-node",
+      "protobufjs",
+      "sharp"
+    ]
+  }
+}
