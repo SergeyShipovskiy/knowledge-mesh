@@ -1,5 +1,11 @@
-import { pipeline, type FeatureExtractionPipeline } from "@huggingface/transformers";
+import {
+  pipeline,
+  env as hfEnv,
+  type FeatureExtractionPipeline,
+} from "@huggingface/transformers";
 import { config } from "./config.js";
+
+hfEnv.cacheDir = config.modelsDir;
 
 let extractor: Promise<FeatureExtractionPipeline> | null = null;
 

@@ -17,6 +17,9 @@ function required(name: string): string {
 
 export const config = {
   vaultPath: path.resolve(required("OBSIDIAN_VAULT_PATH")),
+  // Embedding models are downloaded here on first use (survives node_modules
+  // reinstalls; gitignored).
+  modelsDir: process.env.MODELS_DIR ?? path.join(repoRoot, "models"),
   postgres: {
     host: process.env.POSTGRES_HOST ?? "localhost",
     port: Number(process.env.POSTGRES_PORT ?? 5432),

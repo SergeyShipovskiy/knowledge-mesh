@@ -71,7 +71,7 @@ Measured footprint (M-series MacBook, ~140-note vault):
 
 | Component | RAM | Disk |
 | --- | --- | --- |
-| Knowledge API (Node + Qwen3-0.6B q8 loaded) | ~530–900 MB | model cache ~650 MB |
+| Knowledge API (Node + Qwen3-0.6B q8 loaded) | ~530–900 MB | `models/` ~650 MB (auto-downloaded on first run, survives reinstalls) |
 | Vault watcher | ~30–50 MB | — |
 | PostgreSQL (`knowledge` DB) | ~230 MB | ~40 MB per 150 notes |
 | Neo4j (native, idle→loaded) | ~90 MB → ~1 GB | ~30 MB |
