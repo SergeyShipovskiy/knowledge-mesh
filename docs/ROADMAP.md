@@ -92,14 +92,16 @@
   incremental extractor every 30 min; Postgres advisory lock prevents
   overlapping runs (✅ 2026-06-11)
 
-### Near term (hygiene — next up, in order)
-- [ ] **Backups** — nightly launchd job: `pg_dump` of the `knowledge` DB
-  (semantic layer = hours of Opus extraction) + vault archive copy. The vault
-  is the canon: losing it loses everything
-- [ ] **`pnpm doctor`** — one-command self-diagnostics: API/Postgres/Neo4j up,
-  watcher alive, counts sane, documents pending extraction
-- [ ] **CLAUDE.md** — repo-level guidance so any agent/colleague opening the
-  repo understands the architecture and conventions
+### Near term (hygiene)
+- [x] **Backups** — laptop-friendly: hourly launchd check with a ≥20h freshness
+  rule (backs up in the first awake window each day), `pg_dump` + vault
+  archive, 14-copy rotation, optional rclone offsite to Google Drive
+  (✅ 2026-06-11; one-time `rclone config` pending on the owner)
+- [x] **`pnpm run doctor`** — one-screen health report: vault, Postgres counts,
+  Neo4j, API + embedding pipeline, claude CLI, launchd services, backup
+  freshness (✅ 2026-06-11)
+- [x] **CLAUDE.md** — architecture invariants, layout, working conventions for
+  agents/colleagues in the repo (✅ 2026-06-11)
 
 ### Mid term
 - [ ] **`origin: agent` provenance on semantic objects** — mark graph objects

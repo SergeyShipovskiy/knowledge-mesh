@@ -10,6 +10,8 @@
     "index:watch": "pnpm --filter @knowledge-mesh/indexer watch",
     "extract": "pnpm --filter @knowledge-mesh/extractor start",
     "golden": "tsx scripts/golden.ts",
+    "doctor": "tsx scripts/doctor.ts",
+    "backup": "bash scripts/backup.sh",
     "moc": "tsx scripts/generate-moc.ts",
     "api": "pnpm --filter @knowledge-mesh/api start",
     "mcp": "pnpm --filter @knowledge-mesh/mcp-server start"

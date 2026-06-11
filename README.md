@@ -90,6 +90,8 @@ pnpm extract        # LLM semantic extraction (event-driven after install)
 pnpm api            # Knowledge API on http://localhost:3333
 pnpm mcp            # MCP server (stdio); requires the API
 pnpm golden         # retrieval quality evaluation (13 checks)
+pnpm run doctor     # one-screen health report (vault, DBs, API, services, backups)
+pnpm backup         # manual backup (runs hourly via launchd; ≥20h freshness rule)
 pnpm moc            # regenerate Map-of-Content notes in the vault
 pnpm migrate        # apply/upgrade DB schema (handles embedding-dim changes)
 ```
