@@ -127,6 +127,61 @@ The note is written to `vault/agents/<agent>/`, indexed, and graph-projected
 before the tool returns — immediately searchable by every other agent and
 visible to humans in Obsidian. Agents can never overwrite human notes.
 
+### `knowledge_changes`
+
+"What's new in the memory" — recent agent edits + created/updated notes.
+→ `GET /changes`
+
+| Param | Type | Notes |
+| --- | --- | --- |
+| `days` | int 1–90, optional | Look-back window, default 7 |
+| `limit` | int 1–200, optional | Default 30 |
+
+### `knowledge_update_note`
+
+Surgical, audited edit of a human note — only on an explicit human request or
+a confirmed factual status change. → `POST /note/update`
+
+| Param | Type | Notes |
+| --- | --- | --- |
+| `path` | string, required | Vault-relative |
+| `old_string` / `new_string` | strings | Exact unique match → replacement |
+| `append` | string | Alternative: append a section |
+| `reason` | string, required | Goes into the audit log |
+| `agent` | string, optional | Default `claude` |
+
+### `knowledge_undo_edit`
+
+Stepwise revert of the most recent non-reverted agent edit. → `POST /note/undo`
+
+| Param | Type | Notes |
+| --- | --- | --- |
+| `path` | string, required | Vault-relative |
+| `agent` | string, optional | Default `claude` |
+
+### `knowledge_proposals`
+
+Review queue: agent notes awaiting a human decision. → `GET /proposals`
+
+| Param | Type | Notes |
+| --- | --- | --- |
+| `include_all` | boolean, optional | Also list non-proposal agent notes |
+| `limit` | int 1–200, optional | Default 30 |
+
+### `knowledge_promote`
+
+Promote an agent note into the human vault — only on explicit human approval.
+Moves the file out of `agents/`, stamps `promoted`/`promoted_from`
+frontmatter, flips extracted knowledge to `origin: human`, audit-logs the
+move. → `POST /promote`
+
+| Param | Type | Notes |
+| --- | --- | --- |
+| `path` | string, required | Agent-note path (from `knowledge_proposals`) |
+| `target_path` | string, optional | Destination, default `inbox/<filename>` |
+| `reason` | string, optional | Goes into the audit log |
+| `agent` | string, optional | Default `claude` |
+
 ### `knowledge_link`
 
 Create a typed relation between two existing entities. → `POST /link`
@@ -155,8 +210,5 @@ start `pnpm api`.
   (`agents/<agent>/` only, provenance frontmatter, collision-safe filenames);
   the MCP layer cannot bypass them. It also keeps the MCP process light — the
   embedding model loads only in the API process.
-- The four tools map 1:1 onto the plan's Phase 5 tool list
-  (`knowledge_search`, `knowledge_context`, `knowledge_remember`,
-  `knowledge_link`).
 - Adding a tool = adding an API endpoint + a `registerTool` block in
   `src/server.ts` (the only source file).

@@ -104,9 +104,11 @@
   agents/colleagues in the repo (✅ 2026-06-11)
 
 ### Mid term
-- [ ] **`origin: agent` provenance on semantic objects** — mark graph objects
-  extracted from agent notes so agents can weigh agent-sourced knowledge vs
-  human-sourced (echo-chamber protection)
+- [x] **`origin: agent` provenance on semantic objects** — every graph node
+  carries `origin: human | agent` (agent only while *all* source notes are
+  agent-written); surfaced in `/graph` nodes and `/impact` attached knowledge
+  so agents can weigh agent-sourced knowledge (echo-chamber protection)
+  (✅ 2026-06-12)
 - [x] **Analysis-update mechanism** — implemented as a private script
   (`scripts/local/`, gitignored — tied to the owner's org setup): hourly
   batches walk service notes, compare the note's recorded analysis commit
@@ -121,8 +123,11 @@
 - [ ] **Entity dedup/canonicalization pass** — merge near-duplicate names
   ("Refund service" vs "refund-service"), periodic curation report of new
   semantic entities for human review
-- [ ] **Agent-note promotion workflow** — review queue for `vault/agents/*`
-  proposals, one-keystroke promotion into human notes
+- [x] **Agent-note promotion workflow** — `GET /proposals` review queue +
+  `POST /promote` (`knowledge_proposals` / `knowledge_promote` in MCP): moves
+  the note out of `agents/` on explicit human approval, stamps
+  `promoted`/`promoted_from` provenance, flips extracted knowledge to
+  `origin: human`, audit-logs the move (✅ 2026-06-12)
 - [ ] **Freshness surfacing** — analysis-commit / dates in search and impact
   results; staleness warnings against repo HEAD
 - [ ] **Codex / other MCP clients** — register the same MCP server in Codex CLI

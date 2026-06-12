@@ -11,6 +11,7 @@ import { searchChunks, entityContextForDocuments } from "./search.js";
 import { writeAgentNote } from "./vaultWrite.js";
 import { resolveEntity, neighborhood, impact } from "./graph.js";
 import { updateNote, undoLastEdit, noteHistory } from "./noteEdit.js";
+import { listProposals, promoteNote } from "./promote.js";
 
 // The API hosts the only resident embedding model; other processes
 // (indexer, watcher) delegate here via EMBEDDING_REMOTE_URL.
@@ -250,6 +251,33 @@ app.post<{ Body: { path?: string; agent?: string } }>(
     }
   }
 );
+
+app.get<{ Querystring: { all?: string; limit?: string } }>(
+  "/proposals",
+  async (request) => {
+    const includeAll = request.query.all === "1" || request.query.all === "true";
+    const limit = Math.min(Number(request.query.limit ?? 30), 200);
+    return listProposals(includeAll, limit);
+  }
+);
+
+app.post<{
+  Body: { path?: string; target_path?: string; reason?: string; agent?: string };
+}>("/promote", async (request, reply) => {
+  const { path: notePath, target_path, reason, agent } = request.body ?? {};
+  if (!notePath) return reply.code(400).send({ error: "Required field: path" });
+  try {
+    const result = await promoteNote({
+      path: notePath,
+      target_path,
+      reason,
+      agent: agent ?? "system",
+    });
+    return reply.code(201).send(result);
+  } catch (err: any) {
+    return reply.code(err.statusCode ?? 500).send({ error: err.message });
+  }
+});
 
 app.get<{ Querystring: { days?: string; limit?: string } }>(
   "/changes",

@@ -97,18 +97,21 @@ pnpm moc            # regenerate Map-of-Content notes in the vault
 pnpm migrate        # apply/upgrade DB schema (handles embedding-dim changes)
 ```
 
-## MCP tools (9)
+## MCP tools (12)
 
 | Tool | Purpose |
 | --- | --- |
 | `knowledge_search` | hybrid search: vector + full-text + title, RRF-fused |
 | `knowledge_context` | one-shot grounding: excerpts + graph relations |
 | `knowledge_get` | read one full note (content + frontmatter + entity) |
-| `knowledge_graph` | typed neighborhood of an entity, 1–3 hops |
+| `knowledge_graph` | typed neighborhood of an entity, 1–3 hops (nodes carry `origin: human\|agent`) |
 | `knowledge_impact` | blast radius of a service: topics, consumers, HTTP, attached decisions |
 | `knowledge_remember` | store an agent note (own area, never overwrites human notes) |
+| `knowledge_changes` | what changed recently: agent edits + new/updated notes |
 | `knowledge_update_note` | surgical audited edit of a human note (explicit request only) |
 | `knowledge_undo_edit` | stepwise revert of agent edits |
+| `knowledge_proposals` | review queue: agent notes awaiting human decision |
+| `knowledge_promote` | move an approved agent note into the human vault (audited) |
 | `knowledge_link` | typed relation between entities |
 
 Register user-wide in Claude Code (the installer offers this):

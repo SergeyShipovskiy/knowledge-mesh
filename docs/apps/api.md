@@ -97,7 +97,12 @@ Typed neighborhood of an entity in the knowledge graph. `entity` is resolved
 fuzzily (doc-backed entities and exact matches preferred). `types` optionally
 restricts which relation types are traversed
 (e.g. `PUBLISHES_TO,SUBSCRIBES_TO`). Returns `nodes` (with type labels,
-`kind`, `summary`) and `edges`. Capped at 200 paths.
+`kind`, `origin`, `summary`) and `edges`. Capped at 200 paths.
+
+`origin` is knowledge provenance: `human` for anything backed by at least one
+human note, `agent` when every source so far is agent-written (echo-chamber
+protection — agents can weigh agent-sourced knowledge accordingly). Promoting
+an agent note (see `POST /promote`) flips its knowledge to `human`.
 
 ### `GET /impact?service=<name>`
 
@@ -111,7 +116,7 @@ Blast-radius report for a platform service:
   "subscribes": ["purchase.order.commands"],
   "calls_http": [], "called_by_http": [],
   "attached_knowledge": [
-    {"type": "Decision", "name": "Idempotent CancelOrder suppression", "summary": "…", "source": "purchase/order-handler-service"}
+    {"type": "Decision", "name": "Idempotent CancelOrder suppression", "summary": "…", "origin": "human", "source": "purchase/order-handler-service"}
   ]
 }
 ```
@@ -199,6 +204,31 @@ Same contract as `/remember` (minus `type`), but the file lands in
 `agents/<agent>/proposals/` with `status: proposed` in frontmatter. Use for
 agent suggestions that a human should review and promote into their own
 notes. → `201 {"status": "proposed", "path": …}`
+
+### `GET /proposals?all=<0|1>&limit=<n>`
+
+The review queue: agent notes awaiting a human decision. By default only
+proposals (`status: proposed`); `all=1` lists every note under `agents/`
+(plain `/remember` notes can be promoted too). Proposals sort first, then by
+recency.
+
+### `POST /promote`
+
+Promote an agent note into the human part of the vault — call only on an
+explicit human go-ahead. Body: `path` (must be under `agents/`), optional
+`target_path` (default `inbox/<filename>`, must be outside `agents/`),
+optional `reason`, `agent`.
+
+What happens: the file moves to the target (collision-safe), frontmatter gets
+`promoted` + `promoted_from` stamps (original `source: agent:…` is kept),
+extracted knowledge is repointed at the new path and its `origin` flips
+agent→human, the move is audit-logged in `note_edits` (`edit_kind: promote`),
+and the note is re-indexed under the new path.
+
+→ `201 {"status": "promoted", "from": "agents/…", "path": "inbox/…", "edit_id": …}`
+
+Promotions are file moves, so `/note/undo` refuses them — move the note back
+in Obsidian if needed.
 
 ---
 

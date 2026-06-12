@@ -42,6 +42,14 @@ export async function documentsNeedingExtraction(opts: {
 }
 
 /**
+ * Echo-chamber protection: knowledge extracted only from agent-written notes
+ * is marked origin=agent; one human-note source makes it origin=human.
+ */
+function originOf(sources: string[]): "agent" | "human" {
+  return sources.every((s) => s.startsWith("agents/")) ? "agent" : "human";
+}
+
+/**
  * Resolve an extracted object to an entity, reusing existing entities by
  * case-insensitive name so "Kafka" mentioned in ten notes stays one node.
  * Preference order: doc-backed entity of any type → same-type entity →
@@ -88,6 +96,7 @@ async function upsertSemanticEntity(
           summary: object.summary,
           confidence: object.confidence,
           sources,
+          origin: originOf(sources),
         }),
         existing.id,
       ]
@@ -108,6 +117,7 @@ async function upsertSemanticEntity(
         summary: object.summary,
         confidence: object.confidence,
         sources: [sourcePath],
+        origin: originOf([sourcePath]),
       }),
     ]
   );

@@ -27,7 +27,13 @@ export async function resolveEntity(name: string): Promise<ResolvedEntity | null
 
 export interface GraphNeighborhood {
   root: ResolvedEntity;
-  nodes: { name: string; types: string[]; kind: string | null; summary: string | null }[];
+  nodes: {
+    name: string;
+    types: string[];
+    kind: string | null;
+    origin: string | null;
+    summary: string | null;
+  }[];
   edges: { source: string; type: string; target: string }[];
 }
 
@@ -63,8 +69,8 @@ export async function neighborhood(
        WITH DISTINCT rel, startNode(rel) AS s, endNode(rel) AS e
        RETURN s.name AS source, type(rel) AS relType, e.name AS target,
               [s.name, e.name] AS names,
-              [{name: s.name, labels: labels(s), kind: s.kind, summary: s.summary},
-               {name: e.name, labels: labels(e), kind: e.kind, summary: e.summary}] AS nodePair`,
+              [{name: s.name, labels: labels(s), kind: s.kind, origin: s.origin, summary: s.summary},
+               {name: e.name, labels: labels(e), kind: e.kind, origin: e.origin, summary: e.summary}] AS nodePair`,
       { id: entity.id }
     );
 
@@ -82,6 +88,7 @@ export async function neighborhood(
             name: n.name,
             types: (n.labels as string[]).filter((l) => l !== "Entity"),
             kind: n.kind ?? null,
+            origin: n.origin ?? null,
             summary: n.summary ?? null,
           });
         }
@@ -100,7 +107,13 @@ export interface ImpactReport {
   subscribes: string[];
   calls_http: string[];
   called_by_http: string[];
-  attached_knowledge: { type: string; name: string; summary: string | null; source: string }[];
+  attached_knowledge: {
+    type: string;
+    name: string;
+    summary: string | null;
+    origin: string | null;
+    source: string;
+  }[];
 }
 
 export async function impact(entity: ResolvedEntity): Promise<ImpactReport> {
@@ -143,7 +156,8 @@ export async function impact(entity: ResolvedEntity): Promise<ImpactReport> {
          AND o.kind = 'semantic'
          AND any(l IN labels(o) WHERE l IN ['Constraint', 'Decision', 'Problem'])
        RETURN DISTINCT head([l IN labels(o) WHERE l <> 'Entity']) AS type,
-              o.name AS name, o.summary AS summary, target.name AS source
+              o.name AS name, o.summary AS summary, o.origin AS origin,
+              target.name AS source
        LIMIT 30`,
       { names: affectedNames }
     );
@@ -162,6 +176,7 @@ export async function impact(entity: ResolvedEntity): Promise<ImpactReport> {
         type: r.get("type"),
         name: r.get("name"),
         summary: r.get("summary"),
+        origin: r.get("origin") ?? null,
         source: r.get("source"),
       })),
     };

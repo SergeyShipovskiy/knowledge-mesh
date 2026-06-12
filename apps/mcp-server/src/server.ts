@@ -71,7 +71,7 @@ server.registerTool(
   "knowledge_graph",
   {
     description:
-      "Call this to EXPLORE the knowledge graph around an entity: 'what is connected to X and how'. Returns the typed neighborhood (services, topics, decisions, problems, technologies) up to N hops. Use after search located an entity, or when the question is about relationships/dependencies rather than text content.",
+      "Call this to EXPLORE the knowledge graph around an entity: 'what is connected to X and how'. Returns the typed neighborhood (services, topics, decisions, problems, technologies) up to N hops. Each node carries origin: 'human' (from human notes) or 'agent' (only agent-written sources so far — weigh accordingly). Use after search located an entity, or when the question is about relationships/dependencies rather than text content.",
     inputSchema: {
       entity: z.string().describe("Entity name (service, topic, technology, project — fuzzy match allowed)"),
       hops: z.number().int().min(1).max(3).optional().describe("Neighborhood depth (default 1)"),
@@ -93,7 +93,7 @@ server.registerTool(
   "knowledge_impact",
   {
     description:
-      "Call this for BLAST-RADIUS analysis of a platform service before approving changes to it: which Kafka topics it publishes/subscribes, which services consume its events downstream, HTTP callers/callees, its bounded context — plus known Constraints/Decisions/Problems attached to the affected services. Use for PR reviews and 'what breaks if I change X' questions.",
+      "Call this for BLAST-RADIUS analysis of a platform service before approving changes to it: which Kafka topics it publishes/subscribes, which services consume its events downstream, HTTP callers/callees, its bounded context — plus known Constraints/Decisions/Problems attached to the affected services (each with origin: human or agent-sourced). Use for PR reviews and 'what breaks if I change X' questions.",
     inputSchema: {
       service: z.string().describe("Service name, e.g. 'order-handler-service' (fuzzy match allowed)"),
     },
@@ -190,6 +190,51 @@ server.registerTool(
       await callApi("/note/undo", {
         method: "POST",
         body: JSON.stringify({ path, agent: agent ?? "claude" }),
+      })
+    )
+);
+
+server.registerTool(
+  "knowledge_proposals",
+  {
+    description:
+      "List agent-written notes awaiting human review: proposals (status: proposed) by default, or every agent note with include_all. Use when the human asks 'what have agents suggested', 'anything to review/promote?', or before promoting a note with knowledge_promote.",
+    inputSchema: {
+      include_all: z
+        .boolean()
+        .optional()
+        .describe("Also list regular agent notes, not just proposals (default false)"),
+      limit: z.number().int().min(1).max(200).optional().describe("Max entries (default 30)"),
+    },
+  },
+  async ({ include_all, limit }) => {
+    const params = new URLSearchParams();
+    if (include_all) params.set("all", "1");
+    if (limit) params.set("limit", String(limit));
+    return asText(await callApi(`/proposals?${params}`));
+  }
+);
+
+server.registerTool(
+  "knowledge_promote",
+  {
+    description:
+      "Promote an agent note into the human part of the vault — call ONLY when the human explicitly approved it ('yes, promote this', 'accept the proposal'). Moves the file out of agents/ (default destination: inbox/), stamps promotion provenance, flips extracted knowledge to origin=human, and audit-logs the move. Not reversible automatically.",
+    inputSchema: {
+      path: z.string().describe("Vault-relative path of the agent note (from knowledge_proposals)"),
+      target_path: z
+        .string()
+        .optional()
+        .describe("Vault-relative destination, e.g. 'projects/commissions/decision.md' (default: inbox/<filename>)"),
+      reason: z.string().optional().describe("Why it is being promoted — goes into the audit log"),
+      agent: z.string().optional().describe("Agent identity (default: claude)"),
+    },
+  },
+  async ({ path, target_path, reason, agent }) =>
+    asText(
+      await callApi("/promote", {
+        method: "POST",
+        body: JSON.stringify({ path, target_path, reason, agent: agent ?? "claude" }),
       })
     )
 );

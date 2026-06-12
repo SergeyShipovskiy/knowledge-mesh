@@ -33,6 +33,15 @@ export async function projectGraph(): Promise<{ nodes: number; edges: number }> 
       const kind =
         entity.metadata?.kind ??
         (entity.path != null ? "note" : "placeholder");
+      // Provenance: doc-backed entities derive origin from where the note
+      // lives (agents/ = agent-written); semantic entities carry it in
+      // metadata (agent only if every source note is agent-written).
+      const origin =
+        entity.path != null
+          ? entity.path.startsWith("agents/")
+            ? "agent"
+            : "human"
+          : (entity.metadata?.origin ?? null);
       await session.run(
         `MERGE (n:Entity {entity_id: $id})
          SET n:${label},
@@ -40,6 +49,7 @@ export async function projectGraph(): Promise<{ nodes: number; edges: number }> 
              n.path = $path,
              n.tags = $tags,
              n.kind = $kind,
+             n.origin = $origin,
              n.summary = $summary,
              n.placeholder = $placeholder`,
         {
@@ -48,6 +58,7 @@ export async function projectGraph(): Promise<{ nodes: number; edges: number }> 
           path: entity.path ?? null,
           tags: entity.metadata?.tags ?? [],
           kind,
+          origin,
           summary: entity.metadata?.summary ?? null,
           placeholder: kind === "placeholder",
         }

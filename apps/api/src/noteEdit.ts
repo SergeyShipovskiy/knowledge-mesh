@@ -117,6 +117,13 @@ export async function undoLastEdit(notePath: string, agent: string) {
   }
   const edit = rows[0];
 
+  if (edit.edit_kind === "promote") {
+    throw new EditError(
+      "The last entry is a promotion (file move), which cannot be undone automatically — move the note back in Obsidian if needed.",
+      409
+    );
+  }
+
   const content = fs.readFileSync(absPath, "utf8");
   const occurrences = countOccurrences(content, edit.new_fragment);
   if (occurrences !== 1) {

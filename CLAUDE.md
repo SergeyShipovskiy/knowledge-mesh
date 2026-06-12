@@ -37,7 +37,7 @@ per-app docs in [docs/apps/](docs/apps/README.md); state/next in
 - `apps/extractor` — `claude -p` headless engine (subscription, no API key),
   zod-validated output, suffix/separator-insensitive entity resolution.
 - `apps/api` — Fastify on :3333. All knowledge access goes through it.
-- `apps/mcp-server` — thin stdio client over the API; 9 `knowledge_*` tools.
+- `apps/mcp-server` — thin stdio client over the API; 12 `knowledge_*` tools.
 - `scripts/` — `install.sh` (interactive setup), `golden.ts` (retrieval evals),
   `doctor.ts` (health), `backup.sh` (laptop-friendly: hourly check, ≥20h rule,
   optional rclone offsite), `generate-moc.ts`.
