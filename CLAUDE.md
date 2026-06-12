@@ -43,6 +43,10 @@ per-app docs in [docs/apps/](docs/apps/README.md); state/next in
   optional rclone offsite), `generate-moc.ts`.
 - `skills/` — shareable Claude Code skills built on the mesh; symlinked into
   `~/.claude/skills/`.
+- `integrations/paperclip-plugin/` — Paperclip control-plane plugin
+  contributing the `knowledge_*` tools to orchestrated agents. Standalone
+  pnpm workspace (own lockfile, SDK tarballs in gitignored `.paperclip-sdk/`);
+  build with its local `pnpm build`, not the root workspace commands.
 
 ## Working on this repo
 

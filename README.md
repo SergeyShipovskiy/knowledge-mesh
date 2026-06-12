@@ -129,3 +129,12 @@ claude mcp add -s user knowledge-mesh -- pnpm --dir <repo-path> mcp
   `knowledge_impact` call instead of re-reading a platform map, verdict
   guardrails, and write-back of learned facts
 - `qlty-platform-guide` — how to answer platform questions by querying the mesh
+
+## Integrations
+
+- [integrations/paperclip-plugin/](integrations/paperclip-plugin/) — plugin
+  for the [Paperclip](https://github.com/paperclipai/paperclip) agent control
+  plane: contributes the `knowledge_*` tools to orchestrated agents, so they
+  share the same memory as Claude Code sessions. The architecture stays
+  client-agnostic: any runtime can either talk to the Knowledge API directly,
+  mount the MCP server, or wrap it in its own plugin format like this one.

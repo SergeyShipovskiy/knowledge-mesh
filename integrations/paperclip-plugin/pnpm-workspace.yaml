@@ -1,0 +1,3 @@
+# Standalone workspace root: keeps this plugin's lockfile and
+# file:.paperclip-sdk overrides isolated from the knowledge-mesh workspace.
+packages: []

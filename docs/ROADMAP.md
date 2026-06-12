@@ -115,11 +115,14 @@
   against the repo's GitHub head (no local clones), an LLM judges the diff and
   applies surgical audited vault edits; the commit marker is always bumped.
   All services re-checked roughly daily (✅ 2026-06-11)
-- [ ] **Plugin for Paperclip** — expose the mesh to the Paperclip agent control
-  plane: a plugin wrapping the Knowledge API (search/context/get/impact/remember)
-  so Paperclip-orchestrated agents (Developer, Coder, CTO pipeline) share the
-  same memory as Claude Code sessions; PR-review tasks attach a
-  `knowledge_impact` report automatically
+- [x] **Plugin for Paperclip** — `integrations/paperclip-plugin/`
+  (`coremem.knowledge-mesh`): contributes 6 `knowledge_*` agent tools wrapping
+  the Knowledge API (search/context/get/impact/remember/changes) plus a
+  dashboard health widget, so Paperclip-orchestrated agents share the same
+  memory as Claude Code sessions; installed via
+  `paperclipai plugin install <path>` (✅ 2026-06-12). Phase 2 (separate):
+  event hook attaching a `knowledge_impact` report to PR-review tasks
+  automatically
 - [ ] **Entity dedup/canonicalization pass** — merge near-duplicate names
   ("Refund service" vs "refund-service"), periodic curation report of new
   semantic entities for human review
