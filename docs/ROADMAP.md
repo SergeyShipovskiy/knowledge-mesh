@@ -134,9 +134,17 @@
   the note out of `agents/` on explicit human approval, stamps
   `promoted`/`promoted_from` provenance, flips extracted knowledge to
   `origin: human`, audit-logs the move (✅ 2026-06-12)
-- [ ] **Freshness surfacing** — analysis-commit / dates in search and impact
-  results; staleness warnings against repo HEAD
-- [ ] **Codex / other MCP clients** — register the same MCP server in Codex CLI
+- [x] **Freshness surfacing** — `/search` results and `/impact` carry
+  `updated_at` (last indexed) and `analysis_commit` (last platform-analysis
+  reconciliation) so consumers weigh how current a hit is (✅ 2026-06-13).
+  HEAD-staleness comparison stays in the private analysis-sync (needs GitHub)
+- [x] **Codex / other MCP clients** — `knowledge-mesh` registered in Codex CLI
+  (`codex mcp add`, global stdio); same server, same memory (✅ 2026-06-13)
+- [x] **Adoption metrics** — `usage_events` table + `onResponse` hook record
+  every knowledge-facing request; `GET /stats` + `pnpm stats` show reads/writes,
+  per-endpoint volume, and write-by-agent attribution, so we can see whether
+  agents actually use the memory (one-time `--backfill` imports history from
+  the API log) (✅ 2026-06-13)
 
 ### Long term
 - [ ] **Server deployment & remote access** — move the stack (Postgres, Neo4j,

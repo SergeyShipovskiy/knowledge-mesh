@@ -19,6 +19,46 @@ useLocalEmbeddings();
 
 const app = Fastify({ logger: true });
 
+// Adoption metrics: record one usage_events row per knowledge-facing request.
+// Runs in onResponse (after the client already has the reply), best-effort —
+// a metrics insert must never break or slow a real request.
+const TRACKED_ROUTES = new Set([
+  "/search",
+  "/context",
+  "/note",
+  "/entity/:id",
+  "/entity",
+  "/graph",
+  "/impact",
+  "/remember",
+  "/proposal",
+  "/proposals",
+  "/promote",
+  "/changes",
+  "/note/update",
+  "/note/undo",
+  "/note/history",
+  "/link",
+]);
+
+app.addHook("onResponse", async (request, reply) => {
+  const route = request.routeOptions?.url;
+  if (!route || !TRACKED_ROUTES.has(route)) return;
+  const body = request.body as { agent?: unknown } | undefined;
+  const query = request.query as { agent?: unknown } | undefined;
+  const rawAgent = body?.agent ?? query?.agent;
+  const agent = typeof rawAgent === "string" && rawAgent.trim() ? rawAgent.trim() : null;
+  try {
+    await pool.query(
+      `INSERT INTO usage_events (endpoint, method, status, duration_ms, agent)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [route, request.method, reply.statusCode, Math.round(reply.elapsedTime ?? 0), agent]
+    );
+  } catch (err) {
+    request.log.warn({ err }, "usage_events insert failed");
+  }
+});
+
 app.post<{ Body: { texts?: string[]; kind?: "document" | "query" } }>(
   "/embed",
   async (request, reply) => {
@@ -277,6 +317,51 @@ app.post<{
   } catch (err: any) {
     return reply.code(err.statusCode ?? 500).send({ error: err.message });
   }
+});
+
+app.get<{ Querystring: { days?: string } }>("/stats", async (request) => {
+  const days = Math.min(Math.max(Number(request.query.days ?? 30), 1), 365);
+  const window = [days];
+
+  const [byEndpoint, byDay, byAgent, totals] = await Promise.all([
+    pool.query(
+      `SELECT endpoint, count(*)::int AS calls,
+              round(avg(duration_ms))::int AS avg_ms,
+              count(*) FILTER (WHERE status >= 400)::int AS errors
+       FROM usage_events WHERE ts > now() - ($1 || ' days')::interval
+       GROUP BY endpoint ORDER BY calls DESC`,
+      window
+    ),
+    pool.query(
+      `SELECT to_char(date_trunc('day', ts), 'YYYY-MM-DD') AS day, count(*)::int AS calls
+       FROM usage_events WHERE ts > now() - ($1 || ' days')::interval
+       GROUP BY 1 ORDER BY 1 DESC`,
+      window
+    ),
+    pool.query(
+      `SELECT agent, count(*)::int AS writes
+       FROM usage_events
+       WHERE ts > now() - ($1 || ' days')::interval AND agent IS NOT NULL
+       GROUP BY agent ORDER BY writes DESC`,
+      window
+    ),
+    pool.query(
+      `SELECT count(*)::int AS total,
+              count(*) FILTER (WHERE method = 'GET')::int AS reads,
+              count(*) FILTER (WHERE method <> 'GET')::int AS writes,
+              min(ts) AS since
+       FROM usage_events WHERE ts > now() - ($1 || ' days')::interval`,
+      window
+    ),
+  ]);
+
+  return {
+    days,
+    totals: totals.rows[0],
+    by_endpoint: byEndpoint.rows,
+    by_day: byDay.rows,
+    writes_by_agent: byAgent.rows,
+  };
 });
 
 app.get<{ Querystring: { days?: string; limit?: string } }>(

@@ -102,6 +102,9 @@ export async function neighborhood(
 
 export interface ImpactReport {
   service: ResolvedEntity;
+  // When the service note was last indexed and the analysis commit it was
+  // last reconciled against — so a reviewer sees how current this picture is.
+  freshness: { updated_at: string | null; analysis_commit: string | null } | null;
   belongs_to: string[];
   publishes: { topic: string; consumers: string[] }[];
   subscribes: string[];
@@ -136,6 +139,22 @@ export async function impact(entity: ResolvedEntity): Promise<ImpactReport> {
       { id: entity.id }
     );
 
+    const { rows: freshRows } = await pool.query(
+      `SELECT d.updated_at,
+              substring(d.content from 'analysis-commit:[[:space:]]*([0-9a-f]{6,40})') AS analysis_commit
+       FROM entities e JOIN documents d ON d.id = e.document_id
+       WHERE e.id = $1`,
+      [entity.id]
+    );
+    const freshness = freshRows[0]
+      ? {
+          updated_at: freshRows[0].updated_at
+            ? new Date(freshRows[0].updated_at).toISOString()
+            : null,
+          analysis_commit: freshRows[0].analysis_commit ?? null,
+        }
+      : null;
+
     const record = result.records[0];
     const pubMap = new Map<string, Set<string>>();
     for (const p of record.get("pubs")) {
@@ -164,6 +183,7 @@ export async function impact(entity: ResolvedEntity): Promise<ImpactReport> {
 
     return {
       service: entity,
+      freshness,
       belongs_to: record.get("contexts").filter(Boolean),
       publishes: [...pubMap.entries()].map(([topic, consumers]) => ({
         topic,

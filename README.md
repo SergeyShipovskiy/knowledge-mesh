@@ -91,6 +91,7 @@ pnpm api            # Knowledge API on http://localhost:3333
 pnpm mcp            # MCP server (stdio); requires the API
 pnpm golden         # retrieval quality evaluation (13 checks)
 pnpm run doctor     # one-screen health report (vault, DBs, API, services, backups)
+pnpm stats          # adoption metrics: who/what queries the shared memory
 pnpm backup         # manual backup (runs hourly via launchd; ≥20h freshness rule)
 ./scripts/restore.sh  # interactive restore: DB and/or vault, local or Google Drive
 pnpm moc            # regenerate Map-of-Content notes in the vault
@@ -118,6 +119,12 @@ Register user-wide in Claude Code (the installer offers this):
 
 ```bash
 claude mcp add -s user knowledge-mesh -- pnpm --dir <repo-path> mcp
+```
+
+Same server, other clients — one shared memory across runtimes:
+
+```bash
+codex mcp add knowledge-mesh -- pnpm --dir <repo-path> mcp   # Codex CLI
 ```
 
 ## Skills

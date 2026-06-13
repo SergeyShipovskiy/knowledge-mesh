@@ -84,3 +84,17 @@ CREATE TABLE IF NOT EXISTS extraction_state (
 CREATE INDEX IF NOT EXISTS chunks_document_id_idx ON chunks(document_id);
 CREATE INDEX IF NOT EXISTS relations_source_idx ON relations(source_entity_id);
 CREATE INDEX IF NOT EXISTS relations_target_idx ON relations(target_entity_id);
+
+-- Adoption metrics: one row per knowledge-facing API request, so we can see
+-- whether agents actually use the shared memory and which tools they reach
+-- for. agent is recorded only for write endpoints that carry it.
+CREATE TABLE IF NOT EXISTS usage_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+  endpoint TEXT NOT NULL,
+  method TEXT NOT NULL,
+  status INT,
+  duration_ms INT,
+  agent TEXT
+);
+CREATE INDEX IF NOT EXISTS usage_events_ts_idx ON usage_events(ts DESC);

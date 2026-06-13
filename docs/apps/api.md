@@ -47,7 +47,9 @@ guarantees exact tokens (service names, Kafka topics, error codes) are found.
       "entity_type": "Technology",
       "tags": ["ctx/inventory"],
       "matched_by": ["vector", "text"],
-      "score": 0.0287
+      "score": 0.0287,
+      "updated_at": "2026-06-12T09:27:08.362Z",
+      "analysis_commit": "b9ecca18"
     }
   ]
 }
@@ -56,7 +58,10 @@ guarantees exact tokens (service names, Kafka topics, error codes) are found.
 `similarity` is `1 − cosine distance` (null for text-only matches); `score`
 is the RRF fusion score results are ranked by; `matched_by` shows which
 retriever(s) found the chunk. Results are chunk-level: one document can
-appear multiple times.
+appear multiple times. **Freshness:** `updated_at` is when the note was last
+indexed; `analysis_commit` is the platform-analysis commit a service note was
+last reconciled against (null for notes analysis-sync doesn't track) — both
+let a consumer weigh how current a hit is.
 
 `400` if `q` is missing.
 
@@ -111,6 +116,7 @@ Blast-radius report for a platform service:
 ```json
 {
   "service": {"name": "purchase/order-handler-service", "type": "Technology"},
+  "freshness": {"updated_at": "2026-06-12T09:27:08.362Z", "analysis_commit": "b9ecca18"},
   "belongs_to": ["purchase"],
   "publishes": [{"topic": "purchase.order.events", "consumers": ["inventory/pm-service", "…"]}],
   "subscribes": ["purchase.order.commands"],
@@ -231,6 +237,16 @@ Promotions are file moves, so `/note/undo` refuses them — move the note back
 in Obsidian if needed.
 
 ---
+
+### `GET /stats?days=<n>`
+
+Adoption metrics for the shared memory: is it actually used, and which tools
+do agents reach for. Every knowledge-facing request is recorded in
+`usage_events` by an `onResponse` hook (best-effort; never blocks a request).
+Returns `totals` (reads vs writes, first event), `by_endpoint` (calls, avg
+latency, errors), `by_day`, and `writes_by_agent` (agent identity is recorded
+only for write endpoints that carry it; reads are anonymous). Window default
+30 days, capped at 365. Backs `pnpm stats`.
 
 ### `GET /changes?days=<n>&limit=<n>`
 

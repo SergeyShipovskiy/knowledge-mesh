@@ -39,8 +39,9 @@ per-app docs in [docs/apps/](docs/apps/README.md); state/next in
 - `apps/api` — Fastify on :3333. All knowledge access goes through it.
 - `apps/mcp-server` — thin stdio client over the API; 12 `knowledge_*` tools.
 - `scripts/` — `install.sh` (interactive setup), `golden.ts` (retrieval evals),
-  `doctor.ts` (health), `backup.sh` (laptop-friendly: hourly check, ≥20h rule,
-  optional rclone offsite), `generate-moc.ts`.
+  `doctor.ts` (health), `stats.ts` (adoption metrics from `usage_events`;
+  `--backfill <log>` imports history), `backup.sh` (laptop-friendly: hourly
+  check, ≥20h rule, optional rclone offsite), `generate-moc.ts`.
 - `skills/` — shareable Claude Code skills built on the mesh; symlinked into
   `~/.claude/skills/`.
 - `integrations/paperclip-plugin/` — Paperclip control-plane plugin

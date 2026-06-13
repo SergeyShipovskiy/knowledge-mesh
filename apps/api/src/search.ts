@@ -10,6 +10,11 @@ export interface HybridSearchResult {
   tags: string[];
   matched_by: ("vector" | "text" | "title")[];
   score: number;
+  // Freshness: when the note was last indexed, and the platform-analysis
+  // commit it was last reconciled against (for service notes maintained by
+  // analysis-sync). Lets consumers weigh how current a hit is.
+  updated_at: string | null;
+  analysis_commit: string | null;
 }
 
 const CANDIDATES = 30;
@@ -20,7 +25,9 @@ const TITLE_WEIGHT = 2;
 
 const RESULT_COLUMNS = `
   c.id AS chunk_id, c.document_id, d.path, d.title, c.content AS chunk_content,
-  e.type AS entity_type, COALESCE(e.metadata->'tags', '[]'::jsonb) AS tags`;
+  e.type AS entity_type, COALESCE(e.metadata->'tags', '[]'::jsonb) AS tags,
+  d.updated_at,
+  substring(d.content from 'analysis-commit:[[:space:]]*([0-9a-f]{6,40})') AS analysis_commit`;
 
 /**
  * Hybrid retrieval: vector similarity catches paraphrased questions, full-text
@@ -88,6 +95,8 @@ export async function searchChunks(
           tags: Array.isArray(row.tags) ? row.tags : [],
           matched_by: [source],
           score: contribution,
+          updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+          analysis_commit: row.analysis_commit ?? null,
         });
       }
     });

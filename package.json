@@ -11,6 +11,7 @@
     "extract": "pnpm --filter @knowledge-mesh/extractor start",
     "golden": "tsx scripts/golden.ts",
     "doctor": "tsx scripts/doctor.ts",
+    "stats": "tsx scripts/stats.ts",
     "backup": "bash scripts/backup.sh",
     "moc": "tsx scripts/generate-moc.ts",
     "api": "pnpm --filter @knowledge-mesh/api start",
