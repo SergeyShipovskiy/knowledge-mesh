@@ -53,7 +53,7 @@ describe("formatImpactComment", () => {
       ],
     };
     const out = formatImpactComment(impact)!;
-    expect(out).toContain("CoreMem blast radius");
+    expect(out).toContain("Knowledge Mesh blast radius");
     expect(out).toContain("purchase.order.events");
     expect(out).toContain("inventory/pm-service, accounting-pm-service");
     expect(out).toContain("**Bounded context:** purchase");

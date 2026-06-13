@@ -20,7 +20,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-describe("coremem plugin", () => {
+describe("knowledge-mesh plugin", () => {
   let harness: TestHarness;
   const fetchMock = vi.fn();
 
@@ -29,7 +29,7 @@ describe("coremem plugin", () => {
     fetchMock.mockReset();
     harness = createTestHarness({
       manifest,
-      config: { apiUrl: "http://coremem.test:3333", agentName: "paperclip-test" },
+      config: { apiUrl: "http://mesh.test:3333", agentName: "paperclip-test" },
     });
     await plugin.definition.setup(harness.ctx);
   });
@@ -51,7 +51,7 @@ describe("coremem plugin", () => {
       limit: 5,
     });
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://coremem.test:3333/search?q=refunds&limit=5",
+      "http://mesh.test:3333/search?q=refunds&limit=5",
       expect.anything()
     );
     expect(result.error).toBeUndefined();
@@ -111,7 +111,7 @@ describe("PR-impact event hook", () => {
   async function setup(config: Record<string, unknown> = {}) {
     harness = createTestHarness({
       manifest,
-      config: { apiUrl: "http://coremem.test:3333", ...config },
+      config: { apiUrl: "http://mesh.test:3333", ...config },
     });
     await plugin.definition.setup(harness.ctx);
   }
@@ -135,10 +135,10 @@ describe("PR-impact event hook", () => {
 
     const comments = await commentsOn("iss_1");
     expect(comments).toHaveLength(1);
-    expect(comments[0].body).toContain("CoreMem blast radius");
+    expect(comments[0].body).toContain("Knowledge Mesh blast radius");
     expect(comments[0].body).toContain("purchase.order.events");
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://coremem.test:3333/impact?service=order-handler-service",
+      "http://mesh.test:3333/impact?service=order-handler-service",
       expect.anything()
     );
   });
@@ -165,7 +165,7 @@ describe("PR-impact event hook", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("posts nothing (and does not retry) when the service is unknown to CoreMem", async () => {
+  it("posts nothing (and does not retry) when the service is unknown to Knowledge Mesh", async () => {
     await setup();
     harness.seed({ issues: [makeIssue("iss_4", "[PR Review] mystery", PR_DESC)] });
     fetchMock.mockResolvedValue(jsonResponse({ error: "Service not found" }, 404));

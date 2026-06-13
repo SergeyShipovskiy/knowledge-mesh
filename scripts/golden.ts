@@ -50,7 +50,7 @@ const CHECKS: Check[] = [
   { kind: "search", query: "order-handler-service", expectPathIncludes: "order-handler-service" },
   // — agent write-back retrievable
   { kind: "search", query: "what is the status of backstage-next commission cleanup", expectPathIncludes: "agents/claude" },
-  { kind: "search", query: "coremem", expectPathIncludes: "coremem" },
+  { kind: "search", query: "knowledge mesh", expectPathIncludes: "knowledge-mesh" },
   // — graph layer
   { kind: "impact", service: "order-handler-service", expectTopic: "purchase.order.events", minConsumers: 12, expectContext: "purchase" },
   { kind: "graph", entity: "support", types: "BELONGS_TO", expectRootType: "BoundedContext", minEdges: 5 },

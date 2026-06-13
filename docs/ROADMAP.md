@@ -1,4 +1,4 @@
-# Knowledge Mesh (CoreMem) — Roadmap
+# Knowledge Mesh — Roadmap
 
 ## Done
 
@@ -52,7 +52,7 @@
   overlapping runs; orphan sweep covers note deletions)
 
 ### Infrastructure & retrieval quality (post-hackathon)
-- ✅ **CoreMem** adopted as product name (Knowledge Mesh = architecture name)
+- ✅ **Knowledge Mesh** settled as the project name
 - ✅ Neo4j migrated podman container → native brew service; podman VM retired
   (~4 GB RAM reclaimed); zero-VM boot chain: Postgres + Neo4j (brew),
   API + watcher (launchd)
@@ -85,7 +85,7 @@
 - [x] **Rewire QLTY skills** — `qlty-pr-service-change-analyzer` computes blast
   radius via `knowledge_impact` (MCP or curl) with vault-on-disk fallback, plus
   Step 7 write-back via `knowledge_remember`; `qlty-platform-guide` rewritten as
-  "how to query CoreMem"; `qlty-analyst` agent queries the API first, code
+  "how to query the Knowledge Mesh"; `qlty-analyst` agent queries the API first, code
   second. Skills now live in this repo (`skills/`) and are symlinked into
   `~/.claude/skills` (✅ 2026-06-11)
 - [x] **Scheduled extraction** — launchd job (`com.knowledge-mesh.extract`) runs the
@@ -116,7 +116,7 @@
   applies surgical audited vault edits; the commit marker is always bumped.
   All services re-checked roughly daily (✅ 2026-06-11)
 - [x] **Plugin for Paperclip** — `integrations/paperclip-plugin/`
-  (`coremem.knowledge-mesh`): contributes 6 `knowledge_*` agent tools wrapping
+  (`knowledge-mesh`): contributes 6 `knowledge_*` agent tools wrapping
   the Knowledge API (search/context/get/impact/remember/changes) plus a
   dashboard health widget, so Paperclip-orchestrated agents share the same
   memory as Claude Code sessions; installed via

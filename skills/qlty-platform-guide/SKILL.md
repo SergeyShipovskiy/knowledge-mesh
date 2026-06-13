@@ -1,11 +1,11 @@
 ---
 name: qlty-platform-guide
-description: How to answer QLTY platform questions (which services exist, bounded contexts, Kafka topics, HTTP deps, tech stacks) by querying CoreMem — the shared knowledge mesh. Use when any agent needs platform structure knowledge. The old embedded service registry is gone; CoreMem is the single live source (vault notes in Obsidian, indexed into Postgres + Neo4j).
+description: How to answer QLTY platform questions (which services exist, bounded contexts, Kafka topics, HTTP deps, tech stacks) by querying the Knowledge Mesh — the shared memory for the platform. Use when any agent needs platform structure knowledge. The old embedded service registry is gone; the Knowledge Mesh is the single live source (vault notes in Obsidian, indexed into Postgres + Neo4j).
 ---
 
-# QLTY Platform Guide — query CoreMem
+# QLTY Platform Guide — query Knowledge Mesh
 
-The platform knowledge lives in **CoreMem** (a.k.a. Knowledge Mesh): human-curated
+The platform knowledge lives in the **Knowledge Mesh**: human-curated
 notes in the Obsidian vault, indexed for hybrid search and projected into a typed
 graph. Do not rely on static snapshots — query live.
 
@@ -38,7 +38,7 @@ curl -s 'http://localhost:3333/graph?entity=support&types=BELONGS_TO'
 curl -s 'http://localhost:3333/note?path=purchase-order-handler-service'
 ```
 
-**Fallback if the CoreMem API is down:** read the vault directly —
+**Fallback if the Knowledge Mesh API is down:** read the vault directly —
 `/Users/sergship/Documents/CDON_Vault/technologies/qlty/QLTY Platform MOC.md`
 (services grouped by context), per-service notes in `technologies/qlty/platform/`.
 
@@ -52,4 +52,4 @@ curl -s -X POST http://localhost:3333/remember -H 'Content-Type: application/jso
 ```
 
 Code is the ultimate source of truth: `/Users/sergship/Projects/QLTY/fyndiq-2.0/bounded_contexts/<context>/<service>/`.
-For PR reviews, use the `qlty-pr-service-change-analyzer` skill (CoreMem-first blast radius + verdict).
+For PR reviews, use the `qlty-pr-service-change-analyzer` skill (Knowledge Mesh-first blast radius + verdict).

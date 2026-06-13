@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CoreMem backup — laptop-friendly: meant to be invoked hourly (launchd
+# Knowledge Mesh backup — laptop-friendly: meant to be invoked hourly (launchd
 # StartInterval); actually backs up only when the last success is older than
 # MIN_AGE_HOURS. So the backup lands once a day, in the first working window
 # the machine is awake, regardless of when the lid is open.
@@ -10,13 +10,13 @@
 #   2. The vault (tar.gz) — the human canon; losing it loses everything.
 #
 # Config via env (or .env in the repo root):
-#   BACKUP_DIR        default: ~/Backups/coremem
+#   BACKUP_DIR        default: ~/Backups/knowledge-mesh
 #   MIN_AGE_HOURS     default: 20
 #   KEEP_COPIES       default: 14
-#   BACKUP_REMOTE     rclone remote for offsite copies, e.g. "gdrive:coremem-backups"
+#   BACKUP_REMOTE     rclone remote for offsite copies, e.g. "gdrive:knowledge-mesh-backups"
 #                     (one-time setup: brew install rclone && rclone config —
 #                      create a remote named "gdrive" of type "drive" / Google Drive).
-#                     If unset, defaults to gdrive:coremem-backups when an
+#                     If unset, defaults to gdrive:knowledge-mesh-backups when an
 #                     rclone remote called "gdrive" exists; otherwise skipped.
 set -euo pipefail
 
@@ -24,7 +24,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 [ -f "$REPO_DIR/.env" ] && set -a && source "$REPO_DIR/.env" && set +a
 
-BACKUP_DIR="${BACKUP_DIR:-$HOME/Backups/coremem}"
+BACKUP_DIR="${BACKUP_DIR:-$HOME/Backups/knowledge-mesh}"
 MIN_AGE_HOURS="${MIN_AGE_HOURS:-20}"
 KEEP_COPIES="${KEEP_COPIES:-14}"
 MARKER="$BACKUP_DIR/.last-success"
@@ -69,7 +69,7 @@ done
 REMOTE="${BACKUP_REMOTE:-}"
 if [ -z "$REMOTE" ] && command -v rclone >/dev/null 2>&1 \
    && rclone listremotes 2>/dev/null | grep -q '^gdrive:'; then
-  REMOTE="gdrive:coremem-backups"
+  REMOTE="gdrive:knowledge-mesh-backups"
 fi
 if [ -n "$REMOTE" ] && command -v rclone >/dev/null 2>&1; then
   if rclone sync "$BACKUP_DIR" "$REMOTE" --exclude '.last-success' --exclude '.rclone-errors.log' \

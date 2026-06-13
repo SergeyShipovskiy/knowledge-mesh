@@ -21,13 +21,13 @@ function asText(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
 }
 
-const server = new McpServer({ name: "coremem-knowledge-mesh", version: "0.1.0" });
+const server = new McpServer({ name: "knowledge-mesh", version: "0.1.0" });
 
 server.registerTool(
   "knowledge_search",
   {
     description:
-      "CoreMem (a.k.a. Knowledge Mesh) — the shared human/agent memory. Call this FIRST whenever a question may be covered by the shared knowledge vault (projects, platform services, solution designs, past decisions, meeting notes) — before reading repos or asking the user. Hybrid search: semantic similarity plus exact keyword match, so both paraphrased questions ('how are refunds handled') and exact tokens ('purchase.order.events', 'order-handler-service') work. Returns note chunks with paths; follow up with knowledge_get to read a full note.",
+      "Knowledge Mesh — the shared human/agent memory. Call this FIRST whenever a question may be covered by the shared knowledge vault (projects, platform services, solution designs, past decisions, meeting notes) — before reading repos or asking the user. Hybrid search: semantic similarity plus exact keyword match, so both paraphrased questions ('how are refunds handled') and exact tokens ('purchase.order.events', 'order-handler-service') work. Returns note chunks with paths; follow up with knowledge_get to read a full note.",
     inputSchema: {
       query: z.string().describe("Natural-language question or exact term (service name, topic, error code)"),
       limit: z.number().int().min(1).max(50).optional().describe("Max results (default 8)"),

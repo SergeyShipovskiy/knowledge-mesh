@@ -4,13 +4,13 @@ import { extractPrRepo, formatImpactComment, type ImpactData } from "./pr-impact
 const DEFAULT_API_URL = "http://127.0.0.1:3333";
 const DEFAULT_AGENT = "paperclip";
 
-interface CoreMemConfig {
+interface MeshConfig {
   apiUrl: string;
   agentName: string;
   prImpactComments: boolean;
 }
 
-async function readConfig(ctx: PluginContext): Promise<CoreMemConfig> {
+async function readConfig(ctx: PluginContext): Promise<MeshConfig> {
   const config = await ctx.config.get();
   return {
     apiUrl: (typeof config.apiUrl === "string" && config.apiUrl.trim()) || DEFAULT_API_URL,
@@ -31,14 +31,14 @@ function isLoopback(url: string): boolean {
 const plugin = definePlugin({
   async setup(ctx) {
     // ctx.http.fetch carries the host's SSRF guard, which (correctly) blocks
-    // private/loopback addresses — but a local-first CoreMem lives exactly
+    // private/loopback addresses — but a local-first Knowledge Mesh lives exactly
     // there. Loopback URLs use direct fetch (sanctioned for trusted local
     // plugins); anything remote keeps going through ctx.http for the host's
     // tracing and audit logging.
     const httpFetch = async (url: string, init?: RequestInit): Promise<Response> =>
       isLoopback(url) ? fetch(url, init) : ctx.http.fetch(url, init);
 
-    // Thin client over the CoreMem Knowledge API — all logic, validation and
+    // Thin client over the Knowledge API — all logic, validation and
     // write rules live in the API, identical to the MCP server. Errors come
     // back as ToolResult.error so the agent can react instead of crashing.
     const callApi = async (path: string, init?: RequestInit): Promise<ToolResult> => {
@@ -55,7 +55,7 @@ const plugin = definePlugin({
         return { content: JSON.stringify(body, null, 2), data: body };
       } catch (err) {
         return {
-          error: `CoreMem Knowledge API unreachable at ${apiUrl}: ${(err as Error).message}`,
+          error: `Knowledge API unreachable at ${apiUrl}: ${(err as Error).message}`,
         };
       }
     };
@@ -117,7 +117,7 @@ const plugin = definePlugin({
     });
 
     // Proactive memory: when an issue carrying a GitHub PR URL appears,
-    // attach a CoreMem blast-radius comment for the touched service before
+    // attach a Knowledge Mesh blast-radius comment for the touched service before
     // a reviewer starts — memory shows up unasked instead of waiting to be
     // queried. Idempotent per issue via plugin state; fires on create and
     // update because the PR URL is often added during a later enrichment pass.
@@ -140,7 +140,7 @@ const plugin = definePlugin({
       if (result.error) {
         // Service not in the vault (404) or API down: record skip so we don't
         // re-query on every subsequent update of this issue.
-        ctx.logger.debug("No CoreMem impact for PR repo", { repo, error: result.error });
+        ctx.logger.debug("No Knowledge Mesh impact for PR repo", { repo, error: result.error });
         await ctx.state.set(scope, "skipped");
         return;
       }
@@ -153,7 +153,7 @@ const plugin = definePlugin({
 
       await ctx.issues.createComment(issueId, comment, companyId);
       await ctx.state.set(scope, "posted");
-      ctx.logger.info("Attached CoreMem blast-radius to PR issue", { issueId, repo });
+      ctx.logger.info("Attached Knowledge Mesh blast-radius to PR issue", { issueId, repo });
     };
 
     const onIssueEvent = async (event: { entityId?: string; companyId: string }): Promise<void> => {
@@ -184,13 +184,13 @@ const plugin = definePlugin({
       }
     });
 
-    ctx.logger.info("CoreMem Knowledge Mesh plugin ready", {
+    ctx.logger.info("Knowledge Mesh plugin ready", {
       tools: ctx.manifest.tools?.map((tool) => tool.name) ?? [],
     });
   },
 
   async onHealth() {
-    return { status: "ok", message: "CoreMem plugin worker is running" };
+    return { status: "ok", message: "Knowledge Mesh plugin worker is running" };
   },
 
   async onValidateConfig(config: Record<string, unknown>) {

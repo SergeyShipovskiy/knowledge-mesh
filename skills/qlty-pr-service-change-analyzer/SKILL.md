@@ -1,17 +1,17 @@
 ---
 name: qlty-pr-service-change-analyzer
-description: Mandatory pre-merge analysis runbook for any QLTY PR review. Maps the diff to the services and bounded contexts it touches, classifies the change (Kafka producer/consumer, HTTP contract, DB/migration, config, infra, refactor), computes downstream blast radius from CoreMem (knowledge_impact / GET /impact; fallback: vault notes on disk), applies production-safety guardrails (Avro schema impact, event-path HTTP coupling, accounting-pm critical path), produces a risk verdict (safe-to-merge / needs-dev-env-validation / needs-deeper-review / blocker), emits a structured `---INLINE---` / `---SUMMARY---` PR-review draft the CTO pipeline already consumes, and writes the learned delta back to CoreMem. Use this skill on every PR you review before signing off — never approve without running it. Pair with `qlty-platform-guide` (how to query CoreMem), `qlty` (deeper cross-service analysis), and `qlty-local-dev` (Tester escalation target).
+description: Mandatory pre-merge analysis runbook for any QLTY PR review. Maps the diff to the services and bounded contexts it touches, classifies the change (Kafka producer/consumer, HTTP contract, DB/migration, config, infra, refactor), computes downstream blast radius from Knowledge Mesh (knowledge_impact / GET /impact; fallback: vault notes on disk), applies production-safety guardrails (Avro schema impact, event-path HTTP coupling, accounting-pm critical path), produces a risk verdict (safe-to-merge / needs-dev-env-validation / needs-deeper-review / blocker), emits a structured `---INLINE---` / `---SUMMARY---` PR-review draft the CTO pipeline already consumes, and writes the learned delta back to Knowledge Mesh. Use this skill on every PR you review before signing off — never approve without running it. Pair with `qlty-platform-guide` (how to query the Knowledge Mesh), `qlty` (deeper cross-service analysis), and `qlty-local-dev` (Tester escalation target).
 ---
 
 # QLTY PR — Service-Change Blast-Radius Analyzer
 
 > **When to use:** Every time you (Developer / S. Coder, agent [`4ea6a5c2`](/CDO/agents/developer)) are assigned a PR-review task by the CTO PR pipeline. Run this **before** writing your verdict. Do not approve or request changes until you have a verdict from this skill.
 >
-> **Why it exists:** QLTY is a 75-service event-driven platform across 6 bounded contexts. A single-file change can ripple through 12+ downstream consumers via Kafka or break a synchronous HTTP dependency invoked inside event processing. A green CI run does **not** tell you whether you just broke a downstream consumer in a different bounded context. CoreMem does — one `knowledge_impact` call returns the full downstream picture.
+> **Why it exists:** QLTY is a 75-service event-driven platform across 6 bounded contexts. A single-file change can ripple through 12+ downstream consumers via Kafka or break a synchronous HTTP dependency invoked inside event processing. A green CI run does **not** tell you whether you just broke a downstream consumer in a different bounded context. Knowledge Mesh does — one `knowledge_impact` call returns the full downstream picture.
 
 ## Authoritative references (query these — do not guess)
 
-**Primary: CoreMem (the shared knowledge mesh).** One call answers blast radius:
+**Primary: the Knowledge Mesh.** One call answers blast radius:
 
 - MCP tool `knowledge_impact(service)` — topics published/subscribed, downstream
   consumers per topic, HTTP callers/callees, bounded context, plus attached
@@ -21,15 +21,15 @@ description: Mandatory pre-merge analysis runbook for any QLTY PR review. Maps t
 - Supporting tools: `knowledge_search` (find notes), `knowledge_get` (read one
   note in full), `knowledge_graph` (typed neighborhood).
 
-**Fallback (only if the CoreMem API is down)** — read the vault notes directly
-from disk (they are the same single source CoreMem indexes):
+**Fallback (only if the Knowledge Mesh API is down)** — read the vault notes directly
+from disk (they are the same single source Knowledge Mesh indexes):
 
 - `/Users/sergship/Documents/CDON_Vault/technologies/qlty/QLTY Platform MOC.md` — services by bounded context
 - `/Users/sergship/Documents/CDON_Vault/technologies/qlty/platform/<service>.md` — per-service notes
   (kafka subscribes/publishes, http-depends, databases). Grep the folder for a
   topic name to find its consumers.
 
-If a question requires confirming an exact consumer set that CoreMem and the
+If a question requires confirming an exact consumer set that Knowledge Mesh and the
 vault notes don't answer, spawn a child issue to [Coder](/CDO/agents/coder) with
 the specific question (do **not** block on full platform re-analysis).
 
@@ -42,7 +42,7 @@ For each file in the PR diff:
 1. Resolve the **repo / service name** from the file path. QLTY conventions:
    - Services live in `bounded_contexts/<context>/<service>/...` or as standalone repos at `/QLTY/<service>/`.
    - Helm/Kustomize/Skaffold edits also implicate the owning service (one service can have multiple deployments — e.g., `accounting-pm-service` has `purchase-order` and `refund` deployments).
-2. Resolve the **bounded context** via CoreMem: `knowledge_impact(<service>)` returns `belongs_to` (or `curl -s 'http://localhost:3333/impact?service=<name>'`). Contexts: `accounting`, `inventory`, `merchant`, `purchase`, `shop`, `support`.
+2. Resolve the **bounded context** via Knowledge Mesh: `knowledge_impact(<service>)` returns `belongs_to` (or `curl -s 'http://localhost:3333/impact?service=<name>'`). Contexts: `accounting`, `inventory`, `merchant`, `purchase`, `shop`, `support`.
 3. If the same PR touches services in **multiple bounded contexts**, list each and flag it — cross-context PRs are higher-risk by default.
 
 Output for this step: a bullet list `service → context` per touched service.
@@ -63,7 +63,7 @@ Output for this step: a bullet list of categories present, with one-line evidenc
 
 ### Step 3 — Compute blast radius
 
-For each change category from Step 2, list **every downstream service** that consumes the affected topic or calls the affected HTTP endpoint. Pull this from CoreMem — do not estimate. One `knowledge_impact(<service>)` call per touched service returns the full picture: topics published with their consumer lists, subscriptions, HTTP callers/callees, bounded context, **and attached Constraints/Decisions/Problems** — read those too, they encode prior incidents and standing decisions about the affected services.
+For each change category from Step 2, list **every downstream service** that consumes the affected topic or calls the affected HTTP endpoint. Pull this from Knowledge Mesh — do not estimate. One `knowledge_impact(<service>)` call per touched service returns the full picture: topics published with their consumer lists, subscriptions, HTTP callers/callees, bounded context, **and attached Constraints/Decisions/Problems** — read those too, they encode prior incidents and standing decisions about the affected services.
 
 How to look it up:
 
@@ -179,7 +179,7 @@ LGTM | Request changes
 
 End the summary with either `LGTM` (only when verdict is `safe-to-merge`) or `Request changes` (every other verdict). The CTO pipeline uses this string to pick `APPROVE` vs `REQUEST_CHANGES` for the GitHub review event.
 
-### Step 7 — Write the delta back to CoreMem
+### Step 7 — Write the delta back to Knowledge Mesh
 
 Reviews routinely surface facts the knowledge base doesn't have yet: a new
 consumer, a new topic, a contract change, a constraint confirmed in discussion.

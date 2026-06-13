@@ -1,4 +1,4 @@
-// Proactive memory: when a PR-review issue appears, attach a CoreMem
+// Proactive memory: when a PR-review issue appears, attach a Knowledge Mesh
 // blast-radius report so the reviewer sees downstream impact before starting.
 // Pure string logic here (no I/O) so it is trivially testable; the worker
 // owns the HTTP call and comment post.
@@ -24,7 +24,7 @@ const PR_URL_RE = /https?:\/\/github\.com\/[\w.-]+\/([\w.-]+?)(?:\.git)?\/pull\/
 
 /**
  * Extract the repository name from the first GitHub PR URL in some text.
- * In the QLTY platform a repo maps to a service, and CoreMem resolves the
+ * In the QLTY platform a repo maps to a service, and Knowledge Mesh resolves the
  * name fuzzily, so the repo slug is a good /impact key. Returns null when
  * no PR URL is present.
  */
@@ -53,9 +53,9 @@ export function formatImpactComment(impact: ImpactData): string | null {
   if (!hasSignal(impact)) return null;
 
   const lines: string[] = [
-    `## CoreMem blast radius — \`${impact.service.name}\``,
+    `## Knowledge Mesh blast radius — \`${impact.service.name}\``,
     "",
-    "_Auto-attached from CoreMem (Knowledge Mesh) on PR-review intake. Verify against the actual diff — this reflects what the vault knows, not the branch._",
+    "_Auto-attached from Knowledge Mesh on PR-review intake. Verify against the actual diff — this reflects what the vault knows, not the branch._",
     "",
   ];
 

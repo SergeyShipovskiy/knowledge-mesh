@@ -1,5 +1,5 @@
 /**
- * CoreMem self-diagnostics: `pnpm doctor`
+ * Knowledge Mesh self-diagnostics: `pnpm doctor`
  * Checks every moving part and prints a one-screen health report.
  */
 import { execSync } from "node:child_process";
@@ -15,7 +15,7 @@ const bad = (label: string, detail = "") => {
   failures++;
 };
 
-console.log("CoreMem doctor\n");
+console.log("Knowledge Mesh doctor\n");
 
 // ── Vault ────────────────────────────────────────────────────────
 if (fs.existsSync(config.vaultPath)) {
@@ -102,7 +102,7 @@ if (os.platform() === "darwin") {
 }
 
 // ── Backups ──────────────────────────────────────────────────────
-const backupDir = process.env.BACKUP_DIR ?? path.join(os.homedir(), "Backups/coremem");
+const backupDir = process.env.BACKUP_DIR ?? path.join(os.homedir(), "Backups/knowledge-mesh");
 const marker = path.join(backupDir, ".last-success");
 if (fs.existsSync(marker)) {
   const ageHours = Math.round((Date.now() / 1000 - Number(fs.readFileSync(marker, "utf8").trim())) / 3600);

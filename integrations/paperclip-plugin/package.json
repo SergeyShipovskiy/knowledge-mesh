@@ -1,9 +1,9 @@
 {
-  "name": "@coremem/paperclip-plugin",
+  "name": "@knowledge-mesh/paperclip-plugin",
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "description": "Shared human/agent memory: hybrid search, knowledge graph, blast-radius reports and agent write-back over the CoreMem Knowledge API",
+  "description": "Shared human/agent memory: hybrid search, knowledge graph, blast-radius reports and agent write-back over the Knowledge API",
   "scripts": {
     "build": "node ./esbuild.config.mjs",
     "build:rollup": "rollup -c",

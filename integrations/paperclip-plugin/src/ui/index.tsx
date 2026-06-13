@@ -9,12 +9,12 @@ type HealthData = {
 export function DashboardWidget(_props: PluginWidgetProps) {
   const { data, loading, error } = usePluginData<HealthData>("health");
 
-  if (loading) return <div>Checking CoreMem Knowledge API...</div>;
+  if (loading) return <div>Checking Knowledge API...</div>;
   if (error) return <div>Plugin error: {error.message}</div>;
 
   return (
     <div style={{ display: "grid", gap: "0.5rem" }}>
-      <strong>CoreMem Knowledge Mesh</strong>
+      <strong>Knowledge Mesh</strong>
       <div>
         {data?.status === "ok" ? "✓" : "✗"} Knowledge API {data?.status ?? "unknown"} (
         {data?.apiUrl ?? "?"})

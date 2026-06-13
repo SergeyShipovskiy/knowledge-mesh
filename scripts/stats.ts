@@ -1,5 +1,5 @@
 /**
- * CoreMem adoption metrics: `pnpm stats [--days N]`
+ * Knowledge Mesh adoption metrics: `pnpm stats [--days N]`
  *
  * Shows whether the shared memory is actually used and which tools agents
  * reach for, from the `usage_events` table (filled by the API's onResponse
@@ -83,7 +83,7 @@ async function report() {
     )
   ).rows[0];
 
-  console.log(`\nCoreMem adoption — last ${days} day(s)\n`);
+  console.log(`\nKnowledge Mesh adoption — last ${days} day(s)\n`);
   if (!totals.total) {
     console.log("  No usage recorded yet. The API records events going forward;");
     console.log("  import history with: pnpm stats --backfill ~/Library/Logs/knowledge-mesh-api.log\n");

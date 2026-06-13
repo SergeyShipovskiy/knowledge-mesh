@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CoreMem (Knowledge Mesh) — interactive installer.
+# Knowledge Mesh (Knowledge Mesh) — interactive installer.
 # Safe to re-run: it detects existing databases/services and asks before touching anything.
 set -euo pipefail
 
@@ -28,7 +28,7 @@ confirm() { # confirm "prompt" (default yes) -> 0/1
   [[ "$REPLY" =~ ^[Yy] ]]
 }
 
-bold "CoreMem (Knowledge Mesh) installer"
+bold "Knowledge Mesh (Knowledge Mesh) installer"
 echo "One shared memory for humans and AI agents."
 echo "Your notes stay plain markdown — get Obsidian (free) to edit them: https://obsidian.md"
 echo
@@ -61,7 +61,7 @@ ask "Postgres host" "localhost";      PG_HOST="$REPLY"
 ask "Postgres port" "5432";           PG_PORT="$REPLY"
 ask "Postgres user" "${USER}";        PG_USER="$REPLY"
 ask "Postgres password (empty if none)" ""; PG_PASS="$REPLY"
-ask "Database name for CoreMem" "knowledge"; PG_DB="$REPLY"
+ask "Database name for Knowledge Mesh" "knowledge"; PG_DB="$REPLY"
 
 export PGPASSWORD="$PG_PASS"
 if ! pg_isready -h "$PG_HOST" -p "$PG_PORT" >/dev/null 2>&1; then
@@ -106,7 +106,7 @@ else
   warn "Neo4j is not running at $NEO4J_HTTP."
   if confirm "  Install & start Neo4j via Homebrew now?"; then
     brew list neo4j >/dev/null 2>&1 || brew install neo4j
-    ask "  Set a NEW Neo4j password" "coremem-$(date +%s | tail -c 5)"; NEO4J_PASS="$REPLY"
+    ask "  Set a NEW Neo4j password" "knowledge-mesh-$(date +%s | tail -c 5)"; NEO4J_PASS="$REPLY"
     /opt/homebrew/opt/neo4j/bin/neo4j-admin dbms set-initial-password "$NEO4J_PASS" || \
       warn "could not set initial password (maybe already initialized) — make sure the password you entered is correct"
     brew services start neo4j
@@ -124,18 +124,18 @@ fi
 bold "4/6 Vault and configuration"
 echo "  The vault is a folder of markdown notes — your knowledge."
 echo "  Tip: open it in Obsidian (https://obsidian.md) as your editor."
-DEFAULT_VAULT="$HOME/Documents/CoreMemVault"
+DEFAULT_VAULT="$HOME/Documents/KnowledgeMeshVault"
 ask "Path to your vault (existing or new)" "$DEFAULT_VAULT"; VAULT_PATH="$REPLY"
 VAULT_PATH="${VAULT_PATH/#\~/$HOME}"
 if [ ! -d "$VAULT_PATH" ]; then
   if confirm "  '$VAULT_PATH' does not exist. Create it with a starter structure?"; then
     mkdir -p "$VAULT_PATH"/{projects,ideas,decisions,people,technologies,meetings,daily,agents,archive}
-    cat > "$VAULT_PATH/ideas/welcome-to-coremem.md" <<'NOTE'
+    cat > "$VAULT_PATH/ideas/welcome-to-knowledge-mesh.md" <<'NOTE'
 ---
-tags: [coremem]
+tags: [knowledge-mesh]
 ---
 
-# Welcome to CoreMem
+# Welcome to Knowledge Mesh
 
 This vault is your shared memory with AI agents. Write notes in plain
 markdown — they become searchable in seconds and part of a knowledge graph

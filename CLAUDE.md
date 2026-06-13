@@ -1,4 +1,4 @@
-# CoreMem (Knowledge Mesh)
+# Knowledge Mesh
 
 One shared memory for humans and AI agents. Humans own markdown notes in an
 Obsidian vault; the mesh indexes them (Postgres + pgvector hybrid search),
@@ -74,5 +74,3 @@ per-app docs in [docs/apps/](docs/apps/README.md); state/next in
 - All persisted artifacts (code, comments, docs, commits) in English.
 - Commit messages: conventional (`feat:`, `fix:`, `docs:`); no Co-Authored-By
   trailers; never push — the owner pushes.
-- "CoreMem" (product) and "Knowledge Mesh" (architecture) are synonyms; keep
-  both findable in docs and tool descriptions.

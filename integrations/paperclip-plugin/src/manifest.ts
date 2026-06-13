@@ -1,12 +1,12 @@
 import type { PaperclipPluginManifestV1 } from "@paperclipai/plugin-sdk";
 
 const manifest: PaperclipPluginManifestV1 = {
-  id: "coremem.knowledge-mesh",
+  id: "knowledge-mesh",
   apiVersion: 1,
   version: "0.1.0",
-  displayName: "CoreMem Knowledge Mesh",
+  displayName: "Knowledge Mesh",
   description:
-    "Shared human/agent memory (CoreMem, a.k.a. Knowledge Mesh): hybrid search, full-note reads, knowledge graph, blast-radius reports and agent write-back over the CoreMem Knowledge API.",
+    "Shared human/agent memory (Knowledge Mesh): hybrid search, full-note reads, knowledge graph, blast-radius reports and agent write-back over the Knowledge API.",
   author: "Sergey Shipovskiy",
   categories: ["connector"],
   capabilities: [
@@ -29,7 +29,7 @@ const manifest: PaperclipPluginManifestV1 = {
     properties: {
       apiUrl: {
         type: "string",
-        description: "Base URL of the CoreMem Knowledge API",
+        description: "Base URL of the Knowledge API",
         default: "http://127.0.0.1:3333",
       },
       agentName: {
@@ -41,7 +41,7 @@ const manifest: PaperclipPluginManifestV1 = {
       prImpactComments: {
         type: "boolean",
         description:
-          "When an issue with a GitHub PR URL appears, auto-attach a CoreMem blast-radius (knowledge_impact) comment for the touched service",
+          "When an issue with a GitHub PR URL appears, auto-attach a Knowledge Mesh blast-radius (knowledge_impact) comment for the touched service",
         default: true,
       },
     },
@@ -51,7 +51,7 @@ const manifest: PaperclipPluginManifestV1 = {
       {
         type: "dashboardWidget",
         id: "health-widget",
-        displayName: "CoreMem Knowledge Mesh Health",
+        displayName: "Knowledge Mesh Health",
         exportName: "DashboardWidget",
       },
     ],
@@ -61,7 +61,7 @@ const manifest: PaperclipPluginManifestV1 = {
       name: "knowledge_search",
       displayName: "Search shared memory",
       description:
-        "CoreMem (a.k.a. Knowledge Mesh) — the shared human/agent memory. Call this FIRST whenever a question may be covered by the shared knowledge vault (projects, platform services, solution designs, past decisions) — before reading repos or asking. Hybrid search: semantic similarity plus exact keyword match, so both paraphrased questions and exact tokens (service names, Kafka topics, error codes) work. Returns note chunks with paths; follow up with knowledge_get to read a full note.",
+        "Knowledge Mesh — the shared human/agent memory. Call this FIRST whenever a question may be covered by the shared knowledge vault (projects, platform services, solution designs, past decisions) — before reading repos or asking. Hybrid search: semantic similarity plus exact keyword match, so both paraphrased questions and exact tokens (service names, Kafka topics, error codes) work. Returns note chunks with paths; follow up with knowledge_get to read a full note.",
       parametersSchema: {
         type: "object",
         properties: {

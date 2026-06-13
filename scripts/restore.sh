@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# CoreMem restore — interactive recovery from backups made by scripts/backup.sh.
+# Knowledge Mesh restore — interactive recovery from backups made by scripts/backup.sh.
 #
 # Restores either or both:
 #   - Postgres `knowledge` DB (pg_restore from knowledge-*.dump)  [DESTRUCTIVE]
 #   - the vault (from vault-*.tar.gz; current vault is moved aside, not deleted)
 #
-# Sources backups from BACKUP_DIR (default ~/Backups/coremem); if an rclone
+# Sources backups from BACKUP_DIR (default ~/Backups/knowledge-mesh); if an rclone
 # 'gdrive' remote exists, offers to pull the offsite copies down first.
 set -euo pipefail
 
@@ -13,7 +13,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 [ -f "$REPO_DIR/.env" ] && set -a && source "$REPO_DIR/.env" && set +a
 
-BACKUP_DIR="${BACKUP_DIR:-$HOME/Backups/coremem}"
+BACKUP_DIR="${BACKUP_DIR:-$HOME/Backups/knowledge-mesh}"
 PG_HOST="${POSTGRES_HOST:-localhost}"; PG_PORT="${POSTGRES_PORT:-5432}"
 PG_USER="${POSTGRES_USER:-$USER}";    PG_DB="${POSTGRES_DB:-knowledge}"
 export PGPASSWORD="${POSTGRES_PASSWORD:-}"
@@ -21,12 +21,12 @@ export PGPASSWORD="${POSTGRES_PASSWORD:-}"
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 confirm() { read -r -p "$1 [y/N]: " R || true; [[ "${R:-n}" =~ ^[Yy] ]]; }
 
-bold "CoreMem restore"
+bold "Knowledge Mesh restore"
 
 # ── 0. Optionally pull offsite copies ────────────────────────────
 if command -v rclone >/dev/null 2>&1 && rclone listremotes 2>/dev/null | grep -q '^gdrive:'; then
   if confirm "Sync offsite backups from Google Drive into $BACKUP_DIR first?"; then
-    rclone copy "gdrive:coremem-backups" "$BACKUP_DIR" --transfers 2
+    rclone copy "gdrive:knowledge-mesh-backups" "$BACKUP_DIR" --transfers 2
     echo "  pulled."
   fi
 fi

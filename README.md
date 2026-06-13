@@ -1,7 +1,4 @@
-# Knowledge Mesh (CoreMem)
-
-> Also known as **CoreMem** — the two names are synonyms: CoreMem is the
-> product name, Knowledge Mesh describes the architecture.
+# Knowledge Mesh
 
 **One shared, persistent memory for humans and AI agents — local-first, model-agnostic.**
 
