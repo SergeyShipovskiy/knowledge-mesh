@@ -138,8 +138,11 @@
   `updated_at` (last indexed) and `analysis_commit` (last platform-analysis
   reconciliation) so consumers weigh how current a hit is (✅ 2026-06-13).
   HEAD-staleness comparison stays in the private analysis-sync (needs GitHub)
-- [x] **Codex / other MCP clients** — `knowledge-mesh` registered in Codex CLI
-  (`codex mcp add`, global stdio); same server, same memory (✅ 2026-06-13)
+- [ ] **Other MCP clients via remote** — additional clients (e.g. a separate
+  Codex setup, kept on its own project) connect over the remote server, not
+  the local stdio one — folded into the server-deployment track below. (A
+  local `codex mcp add` was trialled and removed: that Codex instance serves a
+  different project and must not share this memory.)
 - [x] **Adoption metrics** — `usage_events` table + `onResponse` hook record
   every knowledge-facing request; `GET /stats` + `pnpm stats` show reads/writes,
   per-endpoint volume, and write-by-agent attribution, so we can see whether
@@ -150,7 +153,9 @@
 - [ ] **Server deployment & remote access** — move the stack (Postgres, Neo4j,
   API, indexer) to a server; vault synced via git/Obsidian Sync; MCP served
   over Streamable HTTP with auth, so any machine and any agent connects to the
-  same memory remotely
+  same memory remotely. Planned as a **private fork** of this repo (carries
+  org-specific deployment/config); the remote MCP is what other clients
+  (e.g. Codex) will connect to instead of the local stdio server.
 - [ ] Contradiction monitoring (CONTRADICTS edges as a review queue)
 - [ ] Temporal knowledge (SUPERSEDES chains as decision history timelines)
 - [ ] Cross-vault federation (work + personal vaults, one query surface)

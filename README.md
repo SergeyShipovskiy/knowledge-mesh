@@ -121,11 +121,10 @@ Register user-wide in Claude Code (the installer offers this):
 claude mcp add -s user knowledge-mesh -- pnpm --dir <repo-path> mcp
 ```
 
-Same server, other clients — one shared memory across runtimes:
-
-```bash
-codex mcp add knowledge-mesh -- pnpm --dir <repo-path> mcp   # Codex CLI
-```
+Any MCP-capable client can point at the same stdio command for one shared
+memory. Remote/multi-machine access (e.g. a separate Codex setup on its own
+project) is the server-deployment track — MCP over Streamable HTTP — not the
+local stdio server above.
 
 ## Skills
 
