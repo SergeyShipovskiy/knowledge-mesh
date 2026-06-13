@@ -86,3 +86,104 @@ describe("coremem plugin", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+const COMPANY = "test-company";
+const PR_DESC = "[https://github.com/acme/order-handler-service/pull/9](https://github.com/acme/order-handler-service/pull/9)";
+
+function makeIssue(id: string, title: string, description: string | null): any {
+  return { id, companyId: COMPANY, title, description };
+}
+
+const IMPACT_WITH_SIGNAL = {
+  service: { name: "order-handler-service", type: "Technology" },
+  belongs_to: ["purchase"],
+  publishes: [{ topic: "purchase.order.events", consumers: ["inventory/pm-service"] }],
+  subscribes: [],
+  calls_http: [],
+  called_by_http: [],
+  attached_knowledge: [],
+};
+
+describe("PR-impact event hook", () => {
+  let harness: TestHarness;
+  const fetchMock = vi.fn();
+
+  async function setup(config: Record<string, unknown> = {}) {
+    harness = createTestHarness({
+      manifest,
+      config: { apiUrl: "http://coremem.test:3333", ...config },
+    });
+    await plugin.definition.setup(harness.ctx);
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockReset();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  async function commentsOn(issueId: string) {
+    return harness.ctx.issues.listComments(issueId, COMPANY);
+  }
+
+  it("attaches a blast-radius comment when a PR issue is created", async () => {
+    await setup();
+    harness.seed({ issues: [makeIssue("iss_1", "[PR Review] order handler", PR_DESC)] });
+    fetchMock.mockResolvedValueOnce(jsonResponse(IMPACT_WITH_SIGNAL));
+
+    await harness.emit("issue.created", {}, { entityId: "iss_1", companyId: COMPANY });
+
+    const comments = await commentsOn("iss_1");
+    expect(comments).toHaveLength(1);
+    expect(comments[0].body).toContain("CoreMem blast radius");
+    expect(comments[0].body).toContain("purchase.order.events");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://coremem.test:3333/impact?service=order-handler-service",
+      expect.anything()
+    );
+  });
+
+  it("only posts once across repeated events for the same issue", async () => {
+    await setup();
+    harness.seed({ issues: [makeIssue("iss_2", "[PR Review] x", PR_DESC)] });
+    fetchMock.mockResolvedValue(jsonResponse(IMPACT_WITH_SIGNAL));
+
+    await harness.emit("issue.created", {}, { entityId: "iss_2", companyId: COMPANY });
+    await harness.emit("issue.updated", {}, { entityId: "iss_2", companyId: COMPANY });
+    await harness.emit("issue.updated", {}, { entityId: "iss_2", companyId: COMPANY });
+
+    expect(await commentsOn("iss_2")).toHaveLength(1);
+  });
+
+  it("does nothing for an issue without a PR URL", async () => {
+    await setup();
+    harness.seed({ issues: [makeIssue("iss_3", "Fix the build", "no link here")] });
+
+    await harness.emit("issue.created", {}, { entityId: "iss_3", companyId: COMPANY });
+
+    expect(await commentsOn("iss_3")).toHaveLength(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("posts nothing (and does not retry) when the service is unknown to CoreMem", async () => {
+    await setup();
+    harness.seed({ issues: [makeIssue("iss_4", "[PR Review] mystery", PR_DESC)] });
+    fetchMock.mockResolvedValue(jsonResponse({ error: "Service not found" }, 404));
+
+    await harness.emit("issue.created", {}, { entityId: "iss_4", companyId: COMPANY });
+    await harness.emit("issue.updated", {}, { entityId: "iss_4", companyId: COMPANY });
+
+    expect(await commentsOn("iss_4")).toHaveLength(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // skip state prevents a re-query
+  });
+
+  it("is disabled when prImpactComments is false", async () => {
+    await setup({ prImpactComments: false });
+    harness.seed({ issues: [makeIssue("iss_5", "[PR Review] off", PR_DESC)] });
+
+    await harness.emit("issue.created", {}, { entityId: "iss_5", companyId: COMPANY });
+
+    expect(await commentsOn("iss_5")).toHaveLength(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

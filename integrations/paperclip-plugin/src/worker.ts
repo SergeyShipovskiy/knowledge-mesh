@@ -1,4 +1,5 @@
 import { definePlugin, runWorker, type PluginContext, type ToolResult } from "@paperclipai/plugin-sdk";
+import { extractPrRepo, formatImpactComment, type ImpactData } from "./pr-impact.js";
 
 const DEFAULT_API_URL = "http://127.0.0.1:3333";
 const DEFAULT_AGENT = "paperclip";
@@ -6,6 +7,7 @@ const DEFAULT_AGENT = "paperclip";
 interface CoreMemConfig {
   apiUrl: string;
   agentName: string;
+  prImpactComments: boolean;
 }
 
 async function readConfig(ctx: PluginContext): Promise<CoreMemConfig> {
@@ -13,6 +15,7 @@ async function readConfig(ctx: PluginContext): Promise<CoreMemConfig> {
   return {
     apiUrl: (typeof config.apiUrl === "string" && config.apiUrl.trim()) || DEFAULT_API_URL,
     agentName: (typeof config.agentName === "string" && config.agentName.trim()) || DEFAULT_AGENT,
+    prImpactComments: config.prImpactComments !== false,
   };
 }
 
@@ -112,6 +115,58 @@ const plugin = definePlugin({
       if (limit) search.set("limit", String(limit));
       return callApi(`/changes?${search}`);
     });
+
+    // Proactive memory: when an issue carrying a GitHub PR URL appears,
+    // attach a CoreMem blast-radius comment for the touched service before
+    // a reviewer starts — memory shows up unasked instead of waiting to be
+    // queried. Idempotent per issue via plugin state; fires on create and
+    // update because the PR URL is often added during a later enrichment pass.
+    const STATE_KEY = "pr-impact-comment";
+
+    const maybePostImpact = async (issueId: string, companyId: string): Promise<void> => {
+      const { prImpactComments } = await readConfig(ctx);
+      if (!prImpactComments) return;
+
+      const scope = { scopeKind: "issue" as const, scopeId: issueId, stateKey: STATE_KEY };
+      if (await ctx.state.get(scope)) return; // already handled this issue
+
+      const issue = await ctx.issues.get(issueId, companyId);
+      if (!issue) return;
+
+      const repo = extractPrRepo(`${issue.title}\n${issue.description ?? ""}`);
+      if (!repo) return; // not a PR issue — leave it untouched, re-check on future updates
+
+      const result = await callApi(`/impact?service=${encodeURIComponent(repo)}`);
+      if (result.error) {
+        // Service not in the vault (404) or API down: record skip so we don't
+        // re-query on every subsequent update of this issue.
+        ctx.logger.debug("No CoreMem impact for PR repo", { repo, error: result.error });
+        await ctx.state.set(scope, "skipped");
+        return;
+      }
+
+      const comment = formatImpactComment(result.data as ImpactData);
+      if (!comment) {
+        await ctx.state.set(scope, "empty");
+        return;
+      }
+
+      await ctx.issues.createComment(issueId, comment, companyId);
+      await ctx.state.set(scope, "posted");
+      ctx.logger.info("Attached CoreMem blast-radius to PR issue", { issueId, repo });
+    };
+
+    const onIssueEvent = async (event: { entityId?: string; companyId: string }): Promise<void> => {
+      if (!event.entityId) return;
+      try {
+        await maybePostImpact(event.entityId, event.companyId);
+      } catch (err) {
+        ctx.logger.error("PR impact hook failed", { error: (err as Error).message });
+      }
+    };
+
+    ctx.events.on("issue.created", onIssueEvent);
+    ctx.events.on("issue.updated", onIssueEvent);
 
     // Dashboard widget data: is the mesh reachable from this Paperclip host?
     ctx.data.register("health", async () => {

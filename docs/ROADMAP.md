@@ -120,9 +120,12 @@
   the Knowledge API (search/context/get/impact/remember/changes) plus a
   dashboard health widget, so Paperclip-orchestrated agents share the same
   memory as Claude Code sessions; installed via
-  `paperclipai plugin install <path>` (✅ 2026-06-12). Phase 2 (separate):
-  event hook attaching a `knowledge_impact` report to PR-review tasks
-  automatically
+  `paperclipai plugin install <path>` (✅ 2026-06-12). Phase 2 — **proactive
+  memory**: the plugin subscribes to `issue.created`/`issue.updated`, and when
+  an issue carries a GitHub PR URL it parses the repo slug (no GitHub access),
+  calls `knowledge_impact`, and posts the blast-radius as a comment before a
+  reviewer starts — idempotent per issue, `prImpactComments` flag, verified
+  live against a real Paperclip issue (✅ 2026-06-13)
 - [ ] **Entity dedup/canonicalization pass** — merge near-duplicate names
   ("Refund service" vs "refund-service"), periodic curation report of new
   semantic entities for human review

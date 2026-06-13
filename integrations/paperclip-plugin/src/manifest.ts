@@ -9,7 +9,17 @@ const manifest: PaperclipPluginManifestV1 = {
     "Shared human/agent memory (CoreMem, a.k.a. Knowledge Mesh): hybrid search, full-note reads, knowledge graph, blast-radius reports and agent write-back over the CoreMem Knowledge API.",
   author: "Sergey Shipovskiy",
   categories: ["connector"],
-  capabilities: ["agent.tools.register", "http.outbound", "ui.dashboardWidget.register"],
+  capabilities: [
+    "agent.tools.register",
+    "http.outbound",
+    "ui.dashboardWidget.register",
+    "events.subscribe",
+    "issues.read",
+    "issue.comments.read",
+    "issue.comments.create",
+    "plugin.state.read",
+    "plugin.state.write",
+  ],
   entrypoints: {
     worker: "./dist/worker.js",
     ui: "./dist/ui",
@@ -27,6 +37,12 @@ const manifest: PaperclipPluginManifestV1 = {
         description:
           "Agent identity recorded on write-back notes (they land under vault/agents/<agentName>/)",
         default: "paperclip",
+      },
+      prImpactComments: {
+        type: "boolean",
+        description:
+          "When an issue with a GitHub PR URL appears, auto-attach a CoreMem blast-radius (knowledge_impact) comment for the touched service",
+        default: true,
       },
     },
   },
