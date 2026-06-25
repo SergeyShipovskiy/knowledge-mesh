@@ -1,7 +1,7 @@
 export { config } from "./config.js";
 export { pool, toVectorLiteral } from "./db.js";
 export { getNeo4jDriver, closeNeo4j } from "./neo4j.js";
-export { embed, embedOne, embedQuery, useLocalEmbeddings } from "./embeddings.js";
+export { embed, embedOne, embedQuery, useLocalEmbeddings, embedderStats } from "./embeddings.js";
 export { parseNote, type ParsedNote, type ParsedLink } from "./parse.js";
 export { chunkContent } from "./chunk.js";
 export {
@@ -12,7 +12,8 @@ export {
   deleteDocument,
   listIndexedPaths,
 } from "./store.js";
-export { projectGraph } from "./graph.js";
+export { projectGraph, scheduleGraphProjection } from "./graph.js";
+export { withTimeout, TimeoutError } from "./timeout.js";
 export {
   listVaultFiles,
   indexFile,

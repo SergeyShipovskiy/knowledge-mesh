@@ -10,7 +10,7 @@ import {
   deleteDocument,
   listIndexedPaths,
 } from "./store.js";
-import { projectGraph } from "./graph.js";
+import { projectGraph, scheduleGraphProjection } from "./graph.js";
 
 const IGNORED_DIRS = new Set([".obsidian", ".trash", ".git", "node_modules"]);
 
@@ -100,11 +100,13 @@ export async function indexSingleFileAndProject(relPath: string): Promise<IndexR
   if (result.note && result.entityId) {
     await syncRelations(result.entityId, result.note.links);
   }
-  await projectGraph();
+  // Graph projection runs in the background — the write returns as soon as the
+  // note is stored and searchable; the graph catches up shortly after.
+  scheduleGraphProjection();
   return result;
 }
 
 export async function removeFileAndProject(relPath: string): Promise<void> {
   await deleteDocument(relPath);
-  await projectGraph();
+  scheduleGraphProjection();
 }

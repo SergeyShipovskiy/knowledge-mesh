@@ -40,6 +40,10 @@ export const config = {
     // model stays resident in exactly one process. The API itself opts out
     // via useLocalEmbeddings().
     remoteUrl: process.env.EMBEDDING_REMOTE_URL || undefined,
+    // Cap embedding compute (local ONNX or remote fetch). A slow/contended
+    // embed rejects with 504 instead of wedging the single API process; the
+    // note is already on disk so the watcher re-indexes it. 0 disables.
+    timeoutMs: Number(process.env.EMBED_TIMEOUT_MS ?? 90000),
   },
   api: {
     port: Number(process.env.API_PORT ?? 3333),

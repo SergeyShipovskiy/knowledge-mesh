@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { config, pool, indexSingleFileAndProject } from "@knowledge-mesh/shared";
+import { config, pool } from "@knowledge-mesh/shared";
 
 class EditError extends Error {
   constructor(
@@ -91,8 +91,8 @@ export async function updateNote(input: UpdateNoteInput) {
     [relPath, input.agent, input.reason, editKind, oldFragment, newFragment]
   );
 
-  await indexSingleFileAndProject(relPath);
-
+  // Re-indexing is async (watcher observes the file change); the edit + audit
+  // row are already durable.
   return {
     status: "updated",
     path: relPath,
@@ -143,7 +143,7 @@ export async function undoLastEdit(notePath: string, agent: string) {
     "UPDATE note_edits SET reverted_at = now(), reverted_by = $2 WHERE id = $1",
     [edit.id, agent]
   );
-  await indexSingleFileAndProject(relPath);
+  // Re-indexing is async (watcher observes the file change).
 
   const remaining = await pool.query(
     "SELECT count(*)::int AS n FROM note_edits WHERE path = $1 AND reverted_at IS NULL",

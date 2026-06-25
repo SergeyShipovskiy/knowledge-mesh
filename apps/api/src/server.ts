@@ -6,6 +6,8 @@ import {
   embed,
   embedQuery,
   useLocalEmbeddings,
+  embedderStats,
+  listVaultFiles,
 } from "@knowledge-mesh/shared";
 import { searchChunks, entityContextForDocuments } from "./search.js";
 import { writeAgentNote } from "./vaultWrite.js";
@@ -75,6 +77,20 @@ app.post<{ Body: { texts?: string[]; kind?: "document" | "query" } }>(
 );
 
 app.get("/health", async () => ({ status: "ok" }));
+
+// Live embedding progress: worker counters (queue depth, completed, avg latency,
+// model-loaded) plus index coverage. During a re-scan the watcher's embeds flow
+// through this process, so these numbers track real-time progress.
+app.get("/embed/status", async () => {
+  const embedder = embedderStats();
+  const { rows } = await pool.query("SELECT count(*)::int AS n FROM sync_state");
+  const indexed = rows[0].n;
+  const total = listVaultFiles().length;
+  return {
+    embedder,
+    index: { indexed, total, pending: Math.max(0, total - indexed) },
+  };
+});
 
 app.get<{ Querystring: { q?: string; limit?: string } }>(
   "/search",

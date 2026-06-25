@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
-import { config, indexSingleFileAndProject } from "@knowledge-mesh/shared";
+import { config } from "@knowledge-mesh/shared";
 
 export function slugify(title: string): string {
   return (
@@ -56,6 +56,9 @@ export async function writeAgentNote(input: AgentNoteInput): Promise<{ relPath: 
   const markdown = matter.stringify(`\n${input.content.trim()}\n`, frontmatter);
   fs.writeFileSync(path.join(config.vaultPath, relPath), markdown, "utf8");
 
-  await indexSingleFileAndProject(relPath);
+  // Indexing (embed + store + graph) is done asynchronously by the watcher,
+  // which observes the vault write — the request never blocks on embedding.
+  // Markdown on disk is the source of truth; the note is searchable shortly
+  // after (watcher debounce ~1s).
   return { relPath };
 }

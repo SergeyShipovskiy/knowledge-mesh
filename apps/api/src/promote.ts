@@ -1,12 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
-import {
-  config,
-  pool,
-  deleteDocument,
-  indexSingleFileAndProject,
-} from "@knowledge-mesh/shared";
+import { config, pool, deleteDocument } from "@knowledge-mesh/shared";
 
 class PromoteError extends Error {
   constructor(
@@ -128,8 +123,9 @@ export async function promoteNote(input: PromoteInput) {
     ]
   );
 
+  // Drop the old path from the index now; the new path is re-indexed
+  // asynchronously by the watcher (which observes the rename).
   await deleteDocument(oldRel);
-  await indexSingleFileAndProject(newRel);
 
   return {
     status: "promoted",

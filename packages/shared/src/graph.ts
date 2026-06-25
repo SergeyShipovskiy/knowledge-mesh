@@ -85,3 +85,43 @@ export async function projectGraph(): Promise<{ nodes: number; edges: number }> 
 
   return { nodes: entities.length, edges: relations.length };
 }
+
+let projectionTimer: ReturnType<typeof setTimeout> | null = null;
+let projectionRunning = false;
+let rerunQueued = false;
+
+async function runProjectionSingleFlight(): Promise<void> {
+  // Single-flight: never let two full projections overlap (overlapping
+  // Postgres↔Neo4j transactions were the deadlock surface). A request that
+  // arrives mid-run just sets rerunQueued so the latest state is projected once.
+  if (projectionRunning) {
+    rerunQueued = true;
+    return;
+  }
+  projectionRunning = true;
+  try {
+    do {
+      rerunQueued = false;
+      await projectGraph();
+    } while (rerunQueued);
+  } catch (err) {
+    console.error(`[graph] background projection failed: ${(err as Error).message}`);
+  } finally {
+    projectionRunning = false;
+  }
+}
+
+/**
+ * Non-blocking, debounced, single-flight graph projection for write paths.
+ * The graph is a disposable projection, so a note write must not block on it
+ * (and bursts coalesce into one projection). Full rebuilds (indexVault) still
+ * await projectGraph() directly.
+ */
+export function scheduleGraphProjection(debounceMs = 3000): void {
+  if (projectionTimer) clearTimeout(projectionTimer);
+  projectionTimer = setTimeout(() => {
+    projectionTimer = null;
+    void runProjectionSingleFlight();
+  }, debounceMs);
+  projectionTimer.unref?.();
+}
