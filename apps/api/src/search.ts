@@ -73,31 +73,50 @@ export async function searchChunks(
     ),
   ]);
 
+  // Fuse at the DOCUMENT level, not the chunk level: a note must occupy one
+  // result slot, and its rank in each modality is that of its best-matching
+  // chunk (first occurrence in an already-ordered list). Keying on chunk_id let
+  // the same note appear several times and split its signal across chunks.
   const fused = new Map<string, HybridSearchResult>();
 
   const fuse = (rows: any[], source: "vector" | "text" | "title") => {
     const weight = source === "title" ? TITLE_WEIGHT : 1;
-    rows.forEach((row, rank) => {
-      const existing = fused.get(row.chunk_id);
-      const contribution = weight / (RRF_K + rank + 1);
-      if (existing) {
-        existing.score += contribution;
-        existing.matched_by.push(source);
-        if (row.similarity != null) existing.similarity = Number(row.similarity);
-      } else {
-        fused.set(row.chunk_id, {
-          document_id: row.document_id,
-          path: row.path,
-          title: row.title,
-          chunk_content: row.chunk_content,
-          similarity: row.similarity != null ? Number(row.similarity) : null,
-          entity_type: row.entity_type,
-          tags: Array.isArray(row.tags) ? row.tags : [],
-          matched_by: [source],
-          score: contribution,
-          updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : null,
-          analysis_commit: row.analysis_commit ?? null,
-        });
+    let docRank = 0; // advances per distinct document, not per chunk
+    const seen = new Set<string>();
+    rows.forEach((row) => {
+      const sim = row.similarity != null ? Number(row.similarity) : null;
+      const existing = fused.get(row.document_id);
+      // Only a document's best chunk in this modality contributes to its rank.
+      if (!seen.has(row.document_id)) {
+        seen.add(row.document_id);
+        const contribution = weight / (RRF_K + docRank + 1);
+        docRank++;
+        if (existing) {
+          existing.score += contribution;
+          if (!existing.matched_by.includes(source)) existing.matched_by.push(source);
+        } else {
+          fused.set(row.document_id, {
+            document_id: row.document_id,
+            path: row.path,
+            title: row.title,
+            chunk_content: row.chunk_content,
+            similarity: sim,
+            entity_type: row.entity_type,
+            tags: Array.isArray(row.tags) ? row.tags : [],
+            matched_by: [source],
+            score: contribution,
+            updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+            analysis_commit: row.analysis_commit ?? null,
+          });
+          return;
+        }
+      }
+      // Surface the highest-similarity chunk for display, even if a later
+      // (lower-ranked) chunk of the same doc carries it.
+      const current = fused.get(row.document_id)!;
+      if (sim != null && (current.similarity == null || sim > current.similarity)) {
+        current.similarity = sim;
+        current.chunk_content = row.chunk_content;
       }
     });
   };
