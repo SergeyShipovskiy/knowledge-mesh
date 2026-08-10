@@ -71,6 +71,15 @@
 ## Next
 
 ### Near term
+- [x] **Backport the coremem fork's retrieval & hygiene work** — currency/
+  authority-aware ranking, exact-token channel, required `kind` + write
+  validation, `similar_existing`, dedup/doctor tooling; adapted to this
+  vault's shape (folder-aware dedup, sandbox kept). Plan with measured
+  local numbers: [COREMEM_BACKPORT_PLAN.md](./COREMEM_BACKPORT_PLAN.md)
+  (✅ implemented + deployed 2026-08-10, incl. the P4 data campaigns:
+  kind-backfill of all 119 agents/ notes, netsuite double marked
+  superseded_by, watcher embed-retry queue as the first upstream→fork
+  backflow candidate; golden held at 11/13 = pre-port baseline).
 - [ ] **Golden-set as a script** — the 8-query before/after comparison was run
   manually for the embedding migration; codify 10–15 canonical questions into
   a repeatable script run after every retrieval change
