@@ -9,6 +9,12 @@
 #      alone is hours of LLM extraction.
 #   2. The vault (tar.gz) — the human canon; losing it loses everything.
 #
+# launchd gotcha (macOS TCC): the job must NOT run as bare /bin/bash — bash
+# has no ~/Documents grant and tar dies with "Operation not permitted" on the
+# vault. The com.knowledge-mesh.backup plist wraps this script in
+# `node -e "execFileSync('/bin/bash', [...])"` so the job inherits node's
+# grant (the same one the watcher indexes the vault with).
+#
 # Config via env (or .env in the repo root):
 #   BACKUP_DIR        default: ~/Backups/knowledge-mesh
 #   MIN_AGE_HOURS     default: 20
@@ -44,6 +50,17 @@ fi
 STAMP=$(date +%Y-%m-%d_%H%M)
 echo "[backup] starting ($STAMP)"
 
+# Failed runs must not leave .tmp litter behind (a broken tar once produced
+# hundreds of them); also sweep leftovers from previous crashed runs.
+trap 'rm -f "$BACKUP_DIR"/*.tmp' EXIT
+rm -f "$BACKUP_DIR"/*.tmp
+
+# Keep newest KEEP_COPIES of a kind. Runs right after each artifact (not once
+# at the end) so one failing step can't stall rotation of the others.
+rotate() {
+  ls -t "$BACKUP_DIR"/$1 2>/dev/null | tail -n +$((KEEP_COPIES + 1)) | xargs -I{} rm -f {}
+}
+
 # 1. Postgres (custom format → pg_restore-able, compressed)
 export PGPASSWORD="${POSTGRES_PASSWORD:-}"
 pg_dump -h "${POSTGRES_HOST:-localhost}" -p "${POSTGRES_PORT:-5432}" \
@@ -51,6 +68,7 @@ pg_dump -h "${POSTGRES_HOST:-localhost}" -p "${POSTGRES_PORT:-5432}" \
         > "$BACKUP_DIR/knowledge-$STAMP.dump.tmp"
 mv "$BACKUP_DIR/knowledge-$STAMP.dump.tmp" "$BACKUP_DIR/knowledge-$STAMP.dump"
 echo "[backup] postgres: $(du -h "$BACKUP_DIR/knowledge-$STAMP.dump" | cut -f1)"
+rotate 'knowledge-*.dump'
 
 # 2. Vault (exclude Obsidian caches/trash)
 VAULT="${OBSIDIAN_VAULT_PATH:?OBSIDIAN_VAULT_PATH not set}"
@@ -59,11 +77,7 @@ tar -czf "$BACKUP_DIR/vault-$STAMP.tar.gz.tmp" \
     -C "$(dirname "$VAULT")" "$(basename "$VAULT")"
 mv "$BACKUP_DIR/vault-$STAMP.tar.gz.tmp" "$BACKUP_DIR/vault-$STAMP.tar.gz"
 echo "[backup] vault: $(du -h "$BACKUP_DIR/vault-$STAMP.tar.gz" | cut -f1)"
-
-# 3. Rotate: keep newest KEEP_COPIES of each kind
-for pattern in 'knowledge-*.dump' 'vault-*.tar.gz'; do
-  ls -t "$BACKUP_DIR"/$pattern 2>/dev/null | tail -n +$((KEEP_COPIES + 1)) | xargs -I{} rm -f {}
-done
+rotate 'vault-*.tar.gz'
 
 # 4. Offsite copy via rclone (Google Drive etc.) — optional, never fatal.
 REMOTE="${BACKUP_REMOTE:-}"
