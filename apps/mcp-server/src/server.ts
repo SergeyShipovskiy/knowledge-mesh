@@ -27,14 +27,18 @@ server.registerTool(
   "knowledge_search",
   {
     description:
-      "Knowledge Mesh — the shared human/agent memory. Call this FIRST whenever a question may be covered by the shared knowledge vault (projects, platform services, solution designs, past decisions, meeting notes) — before reading repos or asking the user. Hybrid search: semantic similarity plus exact keyword match, so both paraphrased questions ('how are refunds handled') and exact tokens ('purchase.order.events', 'order-handler-service') work. Returns note chunks with paths; follow up with knowledge_get to read a full note.",
+      "Knowledge Mesh — the shared human/agent memory. Call this FIRST whenever a question may be covered by the shared knowledge vault (projects, platform services, solution designs, past decisions, meeting notes) — before reading repos or asking the user. Hybrid search: semantic similarity plus exact keyword match, so both paraphrased questions ('how are refunds handled') and exact tokens ('purchase.order.events', 'order-handler-service') work. One result per note (best chunk; chunks_matched counts the rest). Trust the annotations: superseded=true means that text was RETRACTED by a later correction (read `correction` instead of citing it); own_recent_note=true means the hit is your own recent note, not corroboration. Follow up with knowledge_get to read a full note.",
     inputSchema: {
       query: z.string().describe("Natural-language question or exact term (service name, topic, error code)"),
       limit: z.number().int().min(1).max(50).optional().describe("Max results (default 8)"),
+      agent: z.string().optional().describe("Your identity (e.g. 'claude') — enables the own-note echo flag"),
     },
   },
-  async ({ query, limit }) =>
-    asText(await callApi(`/search?q=${encodeURIComponent(query)}&limit=${limit ?? 8}`))
+  async ({ query, limit, agent }) => {
+    const params = new URLSearchParams({ q: query, limit: String(limit ?? 8) });
+    if (agent) params.set("agent", agent);
+    return asText(await callApi(`/search?${params}`));
+  }
 );
 
 server.registerTool(
@@ -44,9 +48,14 @@ server.registerTool(
       "Call this when you need to ANSWER from shared memory in one shot: returns a ready-to-use markdown context block with the most relevant note excerpts plus the knowledge-graph relations (decisions, constraints, dependencies) around them. Prefer this over knowledge_search when the goal is grounding an answer rather than locating a file.",
     inputSchema: {
       query: z.string().describe("Topic or question to build context for"),
+      agent: z.string().optional().describe("Your identity (e.g. 'claude') — enables the own-note echo flag"),
     },
   },
-  async ({ query }) => asText(await callApi(`/context?q=${encodeURIComponent(query)}`))
+  async ({ query, agent }) => {
+    const params = new URLSearchParams({ q: query });
+    if (agent) params.set("agent", agent);
+    return asText(await callApi(`/context?${params}`));
+  }
 );
 
 server.registerTool(
@@ -106,10 +115,13 @@ server.registerTool(
   "knowledge_remember",
   {
     description:
-      "Store a new piece of knowledge in the shared vault as an agent note (never overwrites human notes). It is indexed and added to the graph immediately.",
+      "Store a new piece of knowledge in the shared vault as an agent note (never overwrites human notes). ENGLISH ONLY (short quoted fragments in other languages are fine) — non-English notes are rejected. Title is a NAME (max 90 chars), not a summary: put the conclusion in the first line of content. `kind` is required — it drives ranking: doctrine/decision outrank measurements; tasks expire when done. One conclusion, one home: if the response returns similar_existing (or collided_with), the next write on that subject should append/link to that note (knowledge_update_note) instead of restating it. The note is stamped with your identity (an `agent/<name>` tag + author frontmatter); it is indexed and added to the graph immediately.",
     inputSchema: {
-      title: z.string().describe("Short note title"),
-      content: z.string().describe("Markdown content of the note"),
+      title: z.string().describe("Short note NAME (max 90 chars) — the conclusion goes in the first content line, not here"),
+      content: z.string().describe("Markdown content of the note, in English"),
+      kind: z
+        .enum(["measurement", "report", "task", "runbook", "decision", "doctrine", "idea", "index", "reference", "archive"])
+        .describe("What this note is: measurement/report = readings & session results; task = a work item (expires when done — flip its `status:` frontmatter to done via knowledge_update_note); runbook = how-to; decision/doctrine = rules that outrank readings; idea = proposal; index = navigation hub; reference = pointer; archive = historical import"),
       type: z
         .enum(["Note", "Idea", "Decision", "Project", "Person", "Technology", "Meeting"])
         .optional()
@@ -118,11 +130,11 @@ server.registerTool(
       agent: z.string().optional().describe("Agent identity (default: claude)"),
     },
   },
-  async ({ title, content, type, tags, agent }) =>
+  async ({ title, content, kind, type, tags, agent }) =>
     asText(
       await callApi("/remember", {
         method: "POST",
-        body: JSON.stringify({ title, content, type, tags, agent: agent ?? "claude" }),
+        body: JSON.stringify({ title, content, kind, type, tags, agent: agent ?? "claude" }),
       })
     )
 );

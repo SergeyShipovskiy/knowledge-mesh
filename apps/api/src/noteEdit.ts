@@ -1,6 +1,29 @@
 import fs from "node:fs";
 import path from "node:path";
+import matter from "gray-matter";
 import { config, pool } from "@knowledge-mesh/shared";
+import { assertEnglish } from "./validate.js";
+
+/**
+ * Stamp edit provenance into a note's frontmatter: who last touched it and
+ * when, plus an `agent/<role>` tag — so an agent edit is as visible as an
+ * agent create. Only frontmatter changes; the body (and the audited
+ * old/new fragment used by undo) is untouched.
+ */
+function stampEditProvenance(content: string, agent: string): string {
+  const slug = agent.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "agent";
+  const parsed = matter(content);
+  const data = parsed.data as Record<string, unknown>;
+  data.updated_by = slug;
+  data.updated = new Date().toISOString();
+  const existing = Array.isArray(data.tags)
+    ? data.tags.map(String)
+    : typeof data.tags === "string"
+      ? [data.tags]
+      : [];
+  data.tags = [...new Set([...existing, `agent/${slug}`])];
+  return matter.stringify(parsed.content, data);
+}
 
 class EditError extends Error {
   constructor(
@@ -52,6 +75,8 @@ export async function updateNote(input: UpdateNoteInput) {
   let oldFragment: string | null;
   let newFragment: string;
 
+  assertEnglish(input.append ?? input.new_string ?? "", "The edit");
+
   if (input.append != null) {
     editKind = "append";
     oldFragment = null;
@@ -83,6 +108,8 @@ export async function updateNote(input: UpdateNoteInput) {
     updated = content.replace(input.old_string, input.new_string);
   }
 
+  // Stamp authorship into frontmatter (body/fragment unchanged, undo-safe).
+  updated = stampEditProvenance(updated, input.agent);
   fs.writeFileSync(absPath, updated, "utf8");
 
   const { rows } = await pool.query(

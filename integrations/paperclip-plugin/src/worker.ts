@@ -95,16 +95,18 @@ const plugin = definePlugin({
     });
 
     ctx.tools.register("knowledge_remember", toolSchema("knowledge_remember"), async (params) => {
-      const { title, content, tags } = params as {
+      const { title, content, tags, kind } = params as {
         title?: string;
         content?: string;
         tags?: string[];
+        kind?: string;
       };
       if (!title || !content) return { error: "title and content are required" };
+      if (!kind) return { error: "kind is required (measurement, report, task, runbook, decision, doctrine, idea, index, reference, archive)" };
       const { agentName } = await readConfig(ctx);
       return callApi("/remember", {
         method: "POST",
-        body: JSON.stringify({ title, content, tags, agent: agentName }),
+        body: JSON.stringify({ title, content, tags, kind, agent: agentName }),
       });
     });
 

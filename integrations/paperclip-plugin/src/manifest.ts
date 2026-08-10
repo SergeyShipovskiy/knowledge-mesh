@@ -123,18 +123,24 @@ const manifest: PaperclipPluginManifestV1 = {
       name: "knowledge_remember",
       displayName: "Store new knowledge",
       description:
-        "Store a new piece of knowledge in the shared vault as an agent note (never overwrites human notes). It is indexed and added to the knowledge graph immediately — searchable by every agent and visible to humans in Obsidian.",
+        "Store a new piece of knowledge in the shared vault as an agent note (never overwrites human notes). ENGLISH ONLY; title is a NAME (max 90 chars), not a summary. `kind` is required — it drives ranking (doctrine/decision outrank measurements; tasks expire when done). If the response returns similar_existing, append/link to that note next time instead of restating. It is indexed and added to the knowledge graph immediately — searchable by every agent and visible to humans in Obsidian.",
       parametersSchema: {
         type: "object",
         properties: {
-          title: { type: "string", description: "Short note title" },
+          title: { type: "string", description: "Short note NAME (max 90 chars)" },
           content: {
             type: "string",
-            description: "Markdown content; [[wikilinks]] become graph relations",
+            description: "Markdown content in English; [[wikilinks]] become graph relations",
+          },
+          kind: {
+            type: "string",
+            enum: ["measurement", "report", "task", "runbook", "decision", "doctrine", "idea", "index", "reference", "archive"],
+            description:
+              "What this note is: measurement/report = readings & results; task = work item (expires when done); runbook = how-to; decision/doctrine = rules that outrank readings; idea = proposal; index = navigation hub; reference = pointer; archive = historical import",
           },
           tags: { type: "array", items: { type: "string" }, description: "Tags for the note" },
         },
-        required: ["title", "content"],
+        required: ["title", "content", "kind"],
       },
     },
     {

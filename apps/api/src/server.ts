@@ -9,8 +9,9 @@ import {
   embedderStats,
   listVaultFiles,
 } from "@knowledge-mesh/shared";
-import { searchChunks, entityContextForDocuments } from "./search.js";
+import { searchChunks, entityContextForDocuments, similarNotes } from "./search.js";
 import { writeAgentNote } from "./vaultWrite.js";
+import { assertKind } from "./validate.js";
 import { resolveEntity, neighborhood, impact } from "./graph.js";
 import { updateNote, undoLastEdit, noteHistory } from "./noteEdit.js";
 import { listProposals, promoteNote } from "./promote.js";
@@ -245,14 +246,60 @@ app.get<{ Querystring: { service?: string } }>("/impact", async (request, reply)
 });
 
 app.post<{
-  Body: { title?: string; content?: string; agent?: string; type?: string; tags?: string[] };
+  Body: {
+    title?: string;
+    content?: string;
+    agent?: string;
+    type?: string;
+    tags?: string[];
+    kind?: string;
+  };
 }>("/remember", async (request, reply) => {
-  const { title, content, agent, type, tags } = request.body ?? {};
+  const { title, content, agent, type, tags, kind } = request.body ?? {};
   if (!title || !content) {
     return reply.code(400).send({ error: "Required fields: title, content" });
   }
-  const { relPath } = await writeAgentNote({ title, content, agent, type, tags, kind: "note" });
-  return reply.code(201).send({ status: "stored", path: relPath });
+  try {
+    const noteKind = assertKind(kind);
+    const { relPath, collidedWith } = await writeAgentNote({
+      title,
+      content,
+      agent,
+      type,
+      tags,
+      noteKind,
+      kind: "note",
+    });
+    // Offer the writer the notes that already cover this ground: one
+    // conclusion should have one home, supported by the tool rather than by
+    // discipline. Advisory only — the note is already stored.
+    let similar: Awaited<ReturnType<typeof similarNotes>> = [];
+    try {
+      similar = await similarNotes(`${title}\n\n${content}`, relPath);
+    } catch (err) {
+      request.log.warn({ err }, "similar-notes lookup failed");
+    }
+    return reply.code(201).send({
+      status: "stored",
+      path: relPath,
+      ...(collidedWith
+        ? {
+            collided_with: collidedWith,
+            hint_collision:
+              "A note with this exact slug already exists — this is usually the same conclusion written twice. Check collided_with; if it is the same topic, append there (knowledge_update_note) and delete this copy.",
+          }
+        : {}),
+      ...(similar.length > 0
+        ? {
+            similar_existing: similar,
+            hint:
+              "Existing notes already cover similar ground. If one of them is the home of this conclusion, append/link there (knowledge_update_note) instead of growing a parallel note next time.",
+          }
+        : {}),
+    });
+  } catch (err: any) {
+    return reply.code(err.statusCode ?? 500).send({ error: err.message });
+  }
 });
 
 app.post<{
@@ -262,8 +309,19 @@ app.post<{
   if (!title || !content) {
     return reply.code(400).send({ error: "Required fields: title, content" });
   }
-  const { relPath } = await writeAgentNote({ title, content, agent, tags, kind: "proposal" });
-  return reply.code(201).send({ status: "proposed", path: relPath });
+  try {
+    const { relPath } = await writeAgentNote({
+      title,
+      content,
+      agent,
+      tags,
+      noteKind: "idea",
+      kind: "proposal",
+    });
+    return reply.code(201).send({ status: "proposed", path: relPath });
+  } catch (err: any) {
+    return reply.code(err.statusCode ?? 500).send({ error: err.message });
+  }
 });
 
 app.post<{
