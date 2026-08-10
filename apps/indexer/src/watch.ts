@@ -12,6 +12,15 @@ import {
 const DEBOUNCE_MS = 500;
 const pending = new Map<string, NodeJS.Timeout>();
 
+// A failed index/remove (embedder down, API restarting, transient DB error)
+// must not be treated as done: the note would silently stay missing/stale in
+// Postgres until the next `pnpm index`. Failed paths queue here and are
+// re-attempted every RETRY_INTERVAL_MS until they succeed; a newer event for
+// the same path replaces the queued action (index by content-hash is
+// idempotent, so replays are cheap).
+const RETRY_INTERVAL_MS = Number(process.env.WATCH_RETRY_INTERVAL_MS ?? 60_000);
+const failed = new Map<string, { action: () => Promise<void>; attempts: number }>();
+
 // Event-driven semantic extraction: any vault change arms a quiet-period
 // timer; when the vault has been quiet for EXTRACTOR_QUIET_MS the incremental
 // extractor runs (it no-ops for unchanged docs, and a Postgres advisory lock
@@ -52,18 +61,36 @@ function runExtraction() {
 
 function schedule(relPath: string, action: () => Promise<void>) {
   clearTimeout(pending.get(relPath));
+  failed.delete(relPath); // a newer event supersedes the queued retry
   pending.set(
     relPath,
     setTimeout(async () => {
       pending.delete(relPath);
       try {
         await action();
+        failed.delete(relPath);
       } catch (err) {
-        console.error(`[watch] failed for ${relPath}:`, err);
+        const attempts = (failed.get(relPath)?.attempts ?? 0) + 1;
+        failed.set(relPath, { action, attempts });
+        console.error(
+          `[watch] failed for ${relPath} (attempt ${attempts}, retrying in ${RETRY_INTERVAL_MS / 1000}s):`,
+          err
+        );
       }
     }, DEBOUNCE_MS)
   );
 }
+
+setInterval(() => {
+  if (failed.size === 0) return;
+  console.log(`[watch] retrying ${failed.size} failed path(s)…`);
+  for (const [relPath, entry] of failed) {
+    if (pending.has(relPath)) continue; // a fresh event is already queued
+    const attempts = entry.attempts;
+    schedule(relPath, entry.action);
+    failed.set(relPath, { ...entry, attempts }); // keep the attempt count across the re-schedule
+  }
+}, RETRY_INTERVAL_MS).unref();
 
 async function main() {
   console.log(`Initial scan of ${config.vaultPath}…`);
