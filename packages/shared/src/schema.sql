@@ -53,6 +53,12 @@ ALTER TABLE chunks
   GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
 CREATE INDEX IF NOT EXISTS chunks_ts_idx ON chunks USING gin(ts);
 
+-- Supersession awareness: a chunk retracted by a later correction section of
+-- the same note must not be returned as a standalone answer. Populated at
+-- index time; existing rows need `pnpm index --force` to backfill.
+ALTER TABLE chunks
+  ADD COLUMN IF NOT EXISTS superseded BOOLEAN NOT NULL DEFAULT false;
+
 -- Semantic extractor: which relations came from which document's LLM
 -- extraction, so re-extraction can replace exactly its own output.
 ALTER TABLE relations

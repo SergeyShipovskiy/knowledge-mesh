@@ -92,23 +92,23 @@ app.get("/embed/status", async () => {
   };
 });
 
-app.get<{ Querystring: { q?: string; limit?: string } }>(
+app.get<{ Querystring: { q?: string; limit?: string; agent?: string } }>(
   "/search",
   async (request, reply) => {
-    const { q, limit } = request.query;
+    const { q, limit, agent } = request.query;
     if (!q) return reply.code(400).send({ error: "Missing query parameter: q" });
-    const results = await searchChunks(q, Math.min(Number(limit ?? 8), 50));
+    const results = await searchChunks(q, Math.min(Number(limit ?? 8), 50), agent);
     return { query: q, results };
   }
 );
 
-app.get<{ Querystring: { q?: string; limit?: string } }>(
+app.get<{ Querystring: { q?: string; limit?: string; agent?: string } }>(
   "/context",
   async (request, reply) => {
-    const { q, limit } = request.query;
+    const { q, limit, agent } = request.query;
     if (!q) return reply.code(400).send({ error: "Missing query parameter: q" });
 
-    const results = await searchChunks(q, Math.min(Number(limit ?? 6), 20));
+    const results = await searchChunks(q, Math.min(Number(limit ?? 6), 20), agent);
     const documentIds = [...new Set(results.map((r) => r.document_id))];
     const entities = await entityContextForDocuments(documentIds);
 

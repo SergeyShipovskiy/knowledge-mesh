@@ -24,7 +24,7 @@ export interface StoredNote {
 export async function storeNote(note: ParsedNote): Promise<StoredNote> {
   const hash = hashContent(note.content);
   const chunks = chunkContent(note.body);
-  const embeddings = await embed(chunks);
+  const embeddings = await embed(chunks.map((c) => c.content));
 
   const client = await pool.connect();
   try {
@@ -47,13 +47,21 @@ export async function storeNote(note: ParsedNote): Promise<StoredNote> {
     await client.query("DELETE FROM chunks WHERE document_id = $1", [documentId]);
     for (let i = 0; i < chunks.length; i++) {
       await client.query(
-        `INSERT INTO chunks (document_id, chunk_index, content, embedding)
-         VALUES ($1, $2, $3, $4::vector)`,
-        [documentId, i, chunks[i], toVectorLiteral(embeddings[i])]
+        `INSERT INTO chunks (document_id, chunk_index, content, embedding, superseded)
+         VALUES ($1, $2, $3, $4::vector, $5)`,
+        [documentId, i, chunks[i].content, toVectorLiteral(embeddings[i]), chunks[i].superseded]
       );
     }
 
-    const metadata = JSON.stringify({ tags: note.tags, path: note.relPath });
+    // Provenance travels in frontmatter, not by path: `source: agent:<name>`
+    // marks an agent author; humans editing in Obsidian leave it unset.
+    const fm = note.frontmatter as Record<string, unknown>;
+    const metadata = JSON.stringify({
+      tags: note.tags,
+      path: note.relPath,
+      ...(typeof fm.source === "string" ? { source: fm.source } : {}),
+      ...(typeof fm.created_by === "string" ? { created_by: fm.created_by } : {}),
+    });
 
     // Adopt this document's existing entity, then a placeholder with the same
     // name, before inserting fresh — keeps relations pointing at one entity.
