@@ -48,6 +48,85 @@ try {
   bad("postgres", (err as Error).message.slice(0, 120));
 }
 
+// ── Vault hygiene ────────────────────────────────────────────────
+try {
+  // The vault is English-only; a Cyrillic-heavy note is invisible to the
+  // full-text channel and splits the corpus by language.
+  const { rows: docs } = await pool.query("SELECT path, content FROM documents");
+  const russian = docs.filter((d) => {
+    const cyr = (d.content.match(/[Ѐ-ӿ]/g) ?? []).length;
+    const lat = (d.content.match(/[A-Za-z]/g) ?? []).length;
+    return cyr > 40 && cyr / (cyr + lat) > 0.15;
+  });
+  russian.length === 0
+    ? ok("english-only", "no Cyrillic-heavy notes")
+    : bad(
+        "english-only",
+        `${russian.length} note(s) with heavy Cyrillic: ${russian
+          .slice(0, 5)
+          .map((d) => d.path)
+          .join(", ")}${russian.length > 5 ? ", …" : ""} — translate or mark kind: archive`
+      );
+
+  // Conclusions duplicated across notes bury each other in retrieval.
+  // Template/doc-set folders (technologies/, solution designs) are similar by
+  // construction and excluded here — `pnpm dedup --all` inspects them.
+  const { rows: dup } = await pool.query(
+    `WITH docvec AS (
+       SELECT c.document_id, avg(c.embedding) AS v, d.path
+       FROM chunks c JOIN documents d ON d.id = c.document_id
+       WHERE c.embedding IS NOT NULL
+         AND d.path NOT LIKE 'technologies/%'
+         AND d.path NOT LIKE 'projects/solution_designs/%'
+       GROUP BY c.document_id, d.path
+     )
+     SELECT count(*)::int AS pairs FROM docvec a
+     JOIN docvec b ON a.document_id < b.document_id
+     WHERE 1 - (a.v <=> b.v) > 0.9`
+  );
+  Number(dup[0].pairs) === 0
+    ? ok("near-duplicates", "no doc pairs above 0.9 similarity (template folders excluded)")
+    : bad("near-duplicates", `${dup[0].pairs} doc pair(s) above 0.9 similarity — run: pnpm dedup`);
+
+  // The -2 suffix trap: a slug collision at write time silently minted a copy.
+  const { rows: suffixed } = await pool.query(
+    `SELECT copy.path FROM documents copy
+     JOIN documents orig ON orig.path = regexp_replace(copy.path, '-[0-9]+\\.md$', '.md')
+     WHERE copy.path ~ '-[0-9]+\\.md$' ORDER BY copy.path`
+  );
+  suffixed.length === 0
+    ? ok("suffix collisions", "no -N copies of existing slugs")
+    : bad(
+        "suffix collisions",
+        `${suffixed.length} suspected literal double(s): ${suffixed
+          .slice(0, 5)
+          .map((r) => r.path)
+          .join(", ")}${suffixed.length > 5 ? ", …" : ""} — merge into the original`
+      );
+
+  // Agent tasks that never got closed keep their (discounted but present)
+  // rank forever; flag stale ones so status gets flipped or the note expired.
+  const { rows: staleTasks } = await pool.query(
+    `SELECT path FROM documents
+     WHERE path LIKE 'agents/%'
+       AND frontmatter->>'kind' = 'task'
+       AND COALESCE(frontmatter->>'status', 'open') = 'open'
+       AND updated_at < now() - interval '14 days'
+     ORDER BY updated_at`
+  );
+  staleTasks.length === 0
+    ? ok("stale open tasks", "no agent tasks open and untouched >14 days")
+    : bad(
+        "stale open tasks",
+        `${staleTasks.length} agent task(s) open >14 days: ${staleTasks
+          .slice(0, 5)
+          .map((r) => r.path)
+          .join(", ")}${staleTasks.length > 5 ? ", …" : ""} — flip status: done or update`
+      );
+} catch (err) {
+  bad("vault hygiene", (err as Error).message.slice(0, 120));
+}
+
 // ── Neo4j ────────────────────────────────────────────────────────
 try {
   const session = getNeo4jDriver().session();

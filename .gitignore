@@ -6,3 +6,4 @@ scripts/local/
 *.log
 .DS_Store
 .cache/
+scripts/golden-checks.json

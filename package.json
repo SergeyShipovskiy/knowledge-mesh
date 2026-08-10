@@ -10,6 +10,7 @@
     "index:watch": "pnpm --filter @knowledge-mesh/indexer watch",
     "extract": "pnpm --filter @knowledge-mesh/extractor start",
     "golden": "tsx scripts/golden.ts",
+    "dedup": "tsx scripts/dedup-report.ts",
     "doctor": "tsx scripts/doctor.ts",
     "stats": "tsx scripts/stats.ts",
     "backup": "bash scripts/backup.sh",

@@ -8,6 +8,10 @@
  * (expected path in top-3, count thresholds) so vault growth doesn't
  * break them, while real regressions do.
  */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 const API = process.env.API_URL ?? "http://localhost:3333";
 
 interface SearchCheck {
@@ -37,7 +41,14 @@ interface NoteCheck {
 }
 type Check = SearchCheck | ImpactCheck | GraphCheck | NoteCheck;
 
-const CHECKS: Check[] = [
+// Golden sets are per-instance data: the built-in checks below target this
+// vault. Another deployment provides its own set via GOLDEN_CHECKS=<path> or
+// scripts/golden-checks.json without touching this file.
+const checksFile =
+  process.env.GOLDEN_CHECKS ??
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "golden-checks.json");
+
+const DEFAULT_CHECKS: Check[] = [
   // — paraphrased questions (vector retrieval)
   { kind: "search", query: "how are refunds processed", expectPathIncludes: "refund-service" },
   { kind: "search", query: "what is the cleanup plan for commission service", expectPathIncludes: "commission_cleanup_plan" },
@@ -58,6 +69,10 @@ const CHECKS: Check[] = [
   { kind: "note", path: "commission_cleanup_plan", minContentLength: 5000 },
 ];
 
+const CHECKS: Check[] = fs.existsSync(checksFile)
+  ? JSON.parse(fs.readFileSync(checksFile, "utf8"))
+  : DEFAULT_CHECKS;
+
 async function get(path: string): Promise<any> {
   const res = await fetch(`${API}${path}`);
   if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
@@ -71,6 +86,14 @@ async function runCheck(check: Check): Promise<{ name: string; ok: boolean; deta
         const topN = check.topN ?? 3;
         const d = await get(`/search?q=${encodeURIComponent(check.query)}&limit=${topN}`);
         const paths: string[] = d.results.map((r: any) => r.path);
+        // Collapse invariant: one result per document, always.
+        if (new Set(paths).size !== paths.length) {
+          return {
+            name: `search: ${check.query}`,
+            ok: false,
+            detail: `duplicate documents in results (collapse broken): ${paths.join(", ")}`,
+          };
+        }
         const ok = paths.some((p) => p.includes(check.expectPathIncludes));
         return {
           name: `search: ${check.query}`,
