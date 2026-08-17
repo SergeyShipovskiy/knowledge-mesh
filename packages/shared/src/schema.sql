@@ -48,9 +48,13 @@ CREATE TABLE IF NOT EXISTS sync_state (
 -- (service names, Kafka topics) are always findable.
 ALTER TABLE documents
   ADD COLUMN IF NOT EXISTS frontmatter JSONB NOT NULL DEFAULT '{}';
+-- '/' is split before tokenizing: Postgres reads `suppressed/idempotent` as a
+-- single unstemmable `file` token, so both words become invisible to keyword
+-- search. Dots are left alone — `purchase.order.events` must stay one token.
+-- Changing this expression requires the rebuild in migrate.ts.
 ALTER TABLE chunks
   ADD COLUMN IF NOT EXISTS ts tsvector
-  GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
+  GENERATED ALWAYS AS (to_tsvector('english', translate(content, '/', ' '))) STORED;
 CREATE INDEX IF NOT EXISTS chunks_ts_idx ON chunks USING gin(ts);
 
 -- Supersession awareness: a chunk retracted by a later correction section of

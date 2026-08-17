@@ -49,7 +49,6 @@ const OWN_NOTE_WINDOW_MS = 48 * 3600 * 1000;
 // expires (closed tasks, archives, navigation indexes) decays out of
 // default results while staying findable by exact title/path.
 const BOOST_DOCTRINE = 1.3;
-const DISCOUNT_OPEN_TASK = 0.8;
 const DISCOUNT_CLOSED_TASK = 0.5;
 const DISCOUNT_INDEX = 0.5;
 const DISCOUNT_ARCHIVE = 0.3;
@@ -97,6 +96,15 @@ function escapeLike(token: string): string {
   return token.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
+// Separators carry no meaning in a note name: `payment_files_service`,
+// `payment-files-service` and `payment files service` are the same lookup.
+// Applied to both sides of the loose title/path comparison.
+const SEPARATOR_RUN = /[-_./\s]+/g;
+function normalizeSeparators(text: string): string {
+  return text.toLowerCase().replace(SEPARATOR_RUN, " ").trim();
+}
+const SQL_NORMALIZE = `regexp_replace(lower(%s), '[-_./[:space:]]+', ' ', 'g')`;
+
 function authorityFactor(
   path: string,
   entityType: string | null,
@@ -117,16 +125,53 @@ function authorityFactor(
     factor = BOOST_DOCTRINE;
   }
 
-  if (kind === "task" || kind === "status") {
-    factor *= ["done", "closed", "resolved"].includes(status)
-      ? DISCOUNT_CLOSED_TASK
-      : DISCOUNT_OPEN_TASK;
+  // Only a CLOSED task has expired. An open one is live, actionable knowledge —
+  // discounting it buried the very notes that record what is still broken.
+  if ((kind === "task" || kind === "status") && ["done", "closed", "resolved"].includes(status)) {
+    factor *= DISCOUNT_CLOSED_TASK;
   }
   if (kind === "index" || kind === "moc") factor *= DISCOUNT_INDEX;
   if (kind === "archive" || path.startsWith("archive/")) factor *= DISCOUNT_ARCHIVE;
   if (fm.superseded_by) factor = Math.min(factor, DISCOUNT_SUPERSEDED_DOC);
 
   return factor;
+}
+
+/**
+ * Full-text candidates. `websearch_to_tsquery` requires EVERY term in one
+ * chunk, which is the right default — but when nothing satisfies it the
+ * channel used to go silent and hybrid search quietly degraded to vector-only.
+ * So: all-terms first, and only if that finds nothing, fall back to any-term
+ * (ts_rank still puts the widest coverage on top). The query is split on '/'
+ * to match how chunks.ts is generated.
+ */
+async function textCandidates(query: string) {
+  const all = await pool.query(
+    `SELECT ${RESULT_COLUMNS}, NULL::float AS similarity
+     FROM chunks c
+     JOIN documents d ON d.id = c.document_id
+     WHERE c.ts @@ websearch_to_tsquery('english', translate($1, '/', ' '))
+     ORDER BY ts_rank(c.ts, websearch_to_tsquery('english', translate($1, '/', ' '))) DESC
+     LIMIT $2`,
+    [query, CANDIDATES]
+  );
+  if (all.rows.length > 0) return all;
+
+  return pool.query(
+    `WITH q AS (
+       SELECT (SELECT string_agg(quote_literal(l), ' | ')
+               FROM unnest(tsvector_to_array(to_tsvector('english', translate($1, '/', ' ')))) l
+              )::tsquery AS tq
+     )
+     SELECT ${RESULT_COLUMNS}, NULL::float AS similarity
+     FROM chunks c
+     JOIN documents d ON d.id = c.document_id
+     CROSS JOIN q
+     WHERE q.tq IS NOT NULL AND c.ts @@ q.tq
+     ORDER BY ts_rank(c.ts, q.tq) DESC
+     LIMIT $2`,
+    [query, CANDIDATES]
+  );
 }
 
 function frontmatterAuthor(fm: Record<string, unknown>): string | null {
@@ -157,6 +202,18 @@ export async function searchChunks(
   const exactHits = exactPatterns
     .map((_, i) => `(CASE WHEN c.content ILIKE $${i + 1} ESCAPE '\\' THEN 1 ELSE 0 END)`)
     .join(" + ");
+  const exactInContent = exactPatterns
+    .map((_, i) => `c.content ILIKE $${i + 1} ESCAPE '\\'`)
+    .join(" OR ");
+  const exactNamed = exactPatterns
+    .map((_, i) => `d.title ILIKE $${i + 1} ESCAPE '\\' OR d.path ILIKE $${i + 1} ESCAPE '\\'`)
+    .join(" OR ");
+
+  // LIKE metacharacters in a query must stay literal: unescaped, a single '%'
+  // matches every title and hands the ten shortest notes a weight-3 boost.
+  const titlePattern = `%${escapeLike(query)}%`;
+  const pathPattern = `%${escapeLike(query.replace(/ /g, "-"))}%`;
+  const loosePattern = `%${escapeLike(normalizeSeparators(query))}%`;
 
   const [vectorRows, textRows, titleRows, exactRows] = await Promise.all([
     pool.query(
@@ -167,24 +224,19 @@ export async function searchChunks(
        LIMIT $2`,
       [vector, CANDIDATES]
     ),
-    pool.query(
-      `SELECT ${RESULT_COLUMNS}, NULL::float AS similarity
-       FROM chunks c
-       JOIN documents d ON d.id = c.document_id
-       WHERE c.ts @@ websearch_to_tsquery('english', $1)
-       ORDER BY ts_rank(c.ts, websearch_to_tsquery('english', $1)) DESC
-       LIMIT $2`,
-      [query, CANDIDATES]
-    ),
+    textCandidates(query),
     pool.query(
       `SELECT ${RESULT_COLUMNS}, NULL::float AS similarity
        FROM chunks c
        JOIN documents d ON d.id = c.document_id
        WHERE c.chunk_index = 0
-         AND (d.title ILIKE '%' || $1 || '%' OR d.path ILIKE '%' || replace($1, ' ', '-') || '%')
+         AND (d.title ILIKE $1 ESCAPE '\\'
+              OR d.path ILIKE $2 ESCAPE '\\'
+              OR ${SQL_NORMALIZE.replace("%s", "d.title")} LIKE $3 ESCAPE '\\'
+              OR ${SQL_NORMALIZE.replace("%s", "d.path")} LIKE $3 ESCAPE '\\')
        ORDER BY length(d.title)
        LIMIT 10`,
-      [query]
+      [titlePattern, pathPattern, loosePattern]
     ),
     exact.length === 0
       ? Promise.resolve({ rows: [] })
@@ -192,15 +244,17 @@ export async function searchChunks(
           // Notes NAMED by a token come before notes that merely cite it —
           // template service notes mention each other in short chunks, and
           // the shortest-chunk tiebreak alone would crowd out the named note.
+          // The named note must match on its NAME alone. Matching only
+          // c.content missed it whenever the token lives in the title/path and
+          // in no chunk body — exactly the "I typed the note's name" lookup
+          // this channel exists for. Restricted to chunk 0 so one note cannot
+          // fill the limit with every chunk it owns.
           `SELECT ${RESULT_COLUMNS}, NULL::float AS similarity, ${exactHits} AS hits,
-                  (${exactPatterns
-                    .map((_, i) => `d.title ILIKE $${i + 1} ESCAPE '\\' OR d.path ILIKE $${i + 1} ESCAPE '\\'`)
-                    .join(" OR ")})::int AS named
+                  (${exactNamed})::int AS named
            FROM chunks c
            JOIN documents d ON d.id = c.document_id
-           WHERE ${exactPatterns
-             .map((_, i) => `c.content ILIKE $${i + 1} ESCAPE '\\'`)
-             .join(" OR ")}
+           WHERE (${exactInContent})
+              OR (c.chunk_index = 0 AND (${exactNamed}))
            ORDER BY named DESC, hits DESC, length(c.content)
            LIMIT 20`,
           exactPatterns
