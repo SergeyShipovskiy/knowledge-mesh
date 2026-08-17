@@ -1,14 +1,17 @@
-// Embedding inference runs here, off the API's main thread, so a batch embed
-// can never freeze the event loop that serves /health and /search. Plain .mjs
-// (no tsx needed in the worker) — all config arrives via workerData, so the
-// worker imports nothing from the TS sources. Inference logic is a verbatim
-// port of the former main-thread embedOneRaw, so vectors are unchanged.
-import { parentPort, workerData } from "node:worker_threads";
+// Embedding inference runs here, in a CHILD PROCESS of the API, so a batch
+// embed can never freeze the event loop that serves /health and /search — and
+// so a wedged inference can be SIGKILLed without aborting the API (a
+// worker_thread terminated inside onnxruntime takes the whole process down
+// with SIGABRT, and its replacement thread cannot re-link the native addon).
+// Plain .mjs, no tsx: config arrives as argv JSON, nothing is imported from
+// the TS sources. Inference logic is unchanged, so vectors are unchanged.
 import { pipeline, env } from "@huggingface/transformers";
 
 const { model: modelId, dtype, dimensions, isQwen, queryPrefix, cacheDir } =
-  workerData;
+  JSON.parse(process.argv[2]);
 if (cacheDir) env.cacheDir = cacheDir;
+
+const send = (msg) => process.send?.(msg);
 
 let extractorPromise = null;
 function getExtractor() {
@@ -50,14 +53,15 @@ async function embedOneRaw(text) {
 
 // Warm the model at startup and announce readiness (error surfaces too).
 getExtractor().then(
-  () => parentPort.postMessage({ type: "ready" }),
-  (err) => parentPort.postMessage({ type: "ready", error: String(err?.message ?? err) })
+  () => send({ type: "ready" }),
+  (err) => send({ type: "ready", error: String(err?.message ?? err) })
 );
 
 // Serialize jobs FIFO — one ONNX inference at a time (ORT already uses all
-// cores internally; concurrent session.run is avoided).
+// cores internally). The parent's pool sends one job at a time anyway; this
+// chain is the belt to that braces.
 let chain = Promise.resolve();
-parentPort.on("message", (msg) => {
+process.on("message", (msg) => {
   const { id, texts, kind } = msg;
   chain = chain.then(async () => {
     try {
@@ -65,10 +69,16 @@ parentPort.on("message", (msg) => {
       for (const t of texts) {
         const text = kind === "query" && isQwen ? queryPrefix + t : t;
         vectors.push(await embedOneRaw(text));
+        // Per-text heartbeat: lets the parent tell "slow batch" from "wedged"
+        // and keeps a 40-chunk note from tripping the stall watchdog.
+        send({ type: "progress", id, done: vectors.length, total: texts.length });
       }
-      parentPort.postMessage({ id, vectors });
+      send({ type: "result", id, vectors });
     } catch (err) {
-      parentPort.postMessage({ id, error: String(err?.message ?? err) });
+      send({ type: "error", id, error: String(err?.message ?? err) });
     }
   });
 });
+
+// The parent is gone — never linger as an orphan holding the resident model.
+process.on("disconnect", () => process.exit(0));

@@ -40,6 +40,10 @@ module file, so it works from any working directory) and exposes:
 | `config.neo4j.password` | `NEO4J_PASSWORD` | — (required) | **Quote values containing `#`** — dotenv treats unquoted `#` as a comment |
 | `config.embedding.model` | `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | |
 | `config.embedding.dimensions` | `EMBEDDING_DIM` | `384` | Must match the model and the `vector(384)` column |
+| `config.embedding.concurrency` | `EMBED_CONCURRENCY` | `1` | Embed child processes; each holds its own resident model |
+| `config.embedding.queueMax` | `EMBED_QUEUE_MAX` | `64` | Jobs waiting before callers get 503 |
+| `config.embedding.queueTimeoutMs` | `EMBED_QUEUE_TIMEOUT_MS` | `90000` | Max wait for a free worker (busy ≠ stuck) |
+| `config.embedding.timeoutMs` | `EMBED_TIMEOUT_MS` | `90000` | Per-**text** stall budget; exceeding it replaces that worker |
 | `config.api.port` | `API_PORT` | `3333` | |
 | `config.api.url` | `API_URL` | `http://localhost:<port>` | Used by the MCP server to find the API |
 
@@ -58,10 +62,33 @@ fall back to mean pooling. All vectors are L2-normalized.
 - `embedOne(text)` — single document.
 
 **Single resident model:** when `EMBEDDING_REMOTE_URL` is set, all processes
-delegate embedding to the Knowledge API's `POST /embed` (batched ×100, with
+delegate embedding to the Knowledge API's `POST /embed` (batched ×16, with
 retries) so the model lives in exactly one process; the API itself calls
 `useLocalEmbeddings()` to host it. Unset the variable for fully standalone
 (per-process) embedding.
+
+### The pool
+
+The host runs the model in `EMBED_CONCURRENCY` **child processes** (default 1),
+not worker threads: a wedged worker thread cannot be killed without aborting
+the whole node process (SIGABRT), and its replacement thread fails to re-link
+onnxruntime's native addon ("Module did not self-register"). A child dies
+alone, and its replacement links cleanly.
+
+Callers queue; the pool distinguishes three states, which is what keeps
+concurrent load from cascading into a crash loop:
+
+| State | Trigger | Effect |
+| --- | --- | --- |
+| busy | queue deeper than `EMBED_QUEUE_MAX` | caller gets 503 immediately |
+| waiting too long | queued more than `EMBED_QUEUE_TIMEOUT_MS` | that caller gets 504; workers untouched |
+| stuck | no per-text progress for `EMBED_TIMEOUT_MS` | that child is SIGKILLed and replaced |
+
+`EMBED_TIMEOUT_MS` is a **per-text stall budget**, not a whole-batch cap — the
+worker heartbeats after each text, so a 40-chunk note is not a timeout by
+construction. Search queries jump ahead of document batches in the queue.
+`GET /embed/status` exposes the counters (`queued`, `inFlight`, `shed`,
+`restarts`, `avgMs`). Verify with `pnpm embed:load`.
 
 Changing the model: update `EMBEDDING_MODEL`/`EMBEDDING_DIM`/`EMBEDDING_DTYPE`,
 run `pnpm migrate` (detects a dimension change, drops the index and resets the

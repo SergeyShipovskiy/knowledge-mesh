@@ -40,10 +40,19 @@ export const config = {
     // model stays resident in exactly one process. The API itself opts out
     // via useLocalEmbeddings().
     remoteUrl: process.env.EMBEDDING_REMOTE_URL || undefined,
-    // Cap embedding compute (local ONNX or remote fetch). A slow/contended
-    // embed rejects with 504 instead of wedging the single API process; the
-    // note is already on disk so the watcher re-indexes it. 0 disables.
+    // Stall budget for ONE text, not for a whole batch: the worker reports
+    // progress per text and only a gap longer than this counts as stuck. A
+    // 40-chunk note is therefore no longer a guaranteed timeout. 0 disables.
     timeoutMs: Number(process.env.EMBED_TIMEOUT_MS ?? 90000),
+    // Bounded pool of embed child processes. ONNX Runtime already uses every
+    // core per inference, so >1 mostly buys RAM (~1.4 GB resident model each).
+    concurrency: Number(process.env.EMBED_CONCURRENCY ?? 1),
+    // Backpressure: jobs waiting for a free worker. Over this, callers get 503
+    // immediately instead of piling up behind a queue nobody can drain.
+    queueMax: Number(process.env.EMBED_QUEUE_MAX ?? 64),
+    // How long a job may WAIT for a worker before failing. Distinct from
+    // timeoutMs — expiring here means "busy", never "stuck", so no worker dies.
+    queueTimeoutMs: Number(process.env.EMBED_QUEUE_TIMEOUT_MS ?? 90000),
   },
   api: {
     port: Number(process.env.API_PORT ?? 3333),
