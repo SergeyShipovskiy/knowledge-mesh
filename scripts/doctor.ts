@@ -178,6 +178,29 @@ if (os.platform() === "darwin") {
       bad(`service ${svc}`, "not loaded — see scripts/install.sh");
     }
   }
+
+  // Anything that names a node/pnpm path directly breaks on the next Node upgrade, and a bare
+  // `pnpm` is not on launchd's PATH at login. Only scripts/run.sh survives both.
+  const launcher = path.join(import.meta.dirname, "run.sh");
+  const agents = path.join(os.homedir(), "Library/LaunchAgents");
+  const pinned: string[] = [];
+  for (const f of fs.existsSync(agents) ? fs.readdirSync(agents) : []) {
+    if (!/^com\.knowledge-mesh\..+\.plist$/.test(f)) continue;
+    try {
+      const prog = execSync(`plutil -extract ProgramArguments.0 raw -o - "${path.join(agents, f)}"`, { stdio: "pipe" })
+        .toString()
+        .trim();
+      if (prog !== launcher) pinned.push(`${f.replace(/^com\.knowledge-mesh\.|\.plist$/g, "")} → ${prog}`);
+    } catch { /* no ProgramArguments: not one of ours */ }
+  }
+  try {
+    const mcp = JSON.parse(fs.readFileSync(path.join(os.homedir(), ".claude.json"), "utf8")).mcpServers?.["knowledge-mesh"];
+    if (mcp && mcp.command !== launcher) pinned.push(`MCP server → ${mcp.command}`);
+  } catch { /* no Claude Code config */ }
+  const nvmrc = fs.readFileSync(path.join(import.meta.dirname, "..", ".nvmrc"), "utf8").trim();
+  pinned.length
+    ? bad("service launcher", `${pinned.join("; ")} — not started via scripts/run.sh; re-run scripts/install.sh`)
+    : ok("service launcher", `services and MCP start via scripts/run.sh on node ${nvmrc} (.nvmrc)`);
 }
 
 // ── Backups ──────────────────────────────────────────────────────

@@ -4,6 +4,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LAUNCHER="$REPO_DIR/scripts/run.sh"
 cd "$REPO_DIR"
 
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
@@ -39,7 +40,7 @@ MISSING=0
 need() {
   if command -v "$1" >/dev/null 2>&1; then ok "$1 $($1 --version 2>/dev/null | head -1 | cut -c1-40)"; else fail "$1 — $2"; MISSING=1; fi
 }
-need node "install Node.js >= 20 (https://nodejs.org or nvm)"
+need node "install Node.js $(cat .nvmrc): nvm install $(cat .nvmrc)"
 need pnpm "corepack enable && corepack prepare pnpm@latest --activate"
 need psql "PostgreSQL >= 14: brew install postgresql@16 && brew services start postgresql@16"
 if command -v claude >/dev/null 2>&1; then
@@ -54,6 +55,8 @@ fi
 
 NODE_MAJOR=$(node -e 'console.log(process.versions.node.split(".")[0])')
 [ "$NODE_MAJOR" -ge 20 ] || { fail "Node >= 20 required (found $(node --version))"; exit 1; }
+SVC_NODE=$("$LAUNCHER" exec node --version) || { fail "services can't start: scripts/run.sh found no usable Node $(cat .nvmrc) (see above)"; exit 1; }
+ok "services will run on node $SVC_NODE (pinned in .nvmrc)"
 
 # ── 2. PostgreSQL ────────────────────────────────────────────────
 bold "2/6 PostgreSQL"
@@ -194,10 +197,8 @@ ok "schema applied"
 bold "6/6 Services and first run"
 
 if [ "$(uname)" = "Darwin" ] && confirm "Install background services (launchd: API + vault watcher, start at login)?"; then
-  PNPM_BIN="$(command -v pnpm)"
-  NODE_BIN_DIR="$(dirname "$(command -v node)")"
   CLAUDE_BIN_DIR="$(dirname "$(command -v claude 2>/dev/null || echo /usr/local/bin/claude)")"
-  SVC_PATH="$CLAUDE_BIN_DIR:$NODE_BIN_DIR:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+  SVC_PATH="$CLAUDE_BIN_DIR:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
   mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
   for svc in api watcher extract; do
     case $svc in
@@ -212,7 +213,7 @@ if [ "$(uname)" = "Darwin" ] && confirm "Install background services (launchd: A
 <plist version="1.0"><dict>
   <key>Label</key><string>com.knowledge-mesh.$svc</string>
   <key>ProgramArguments</key><array>
-    <string>$PNPM_BIN</string><string>--dir</string><string>$REPO_DIR</string><string>$ARGS</string>
+    <string>$LAUNCHER</string><string>$ARGS</string>
   </array>
   <key>EnvironmentVariables</key><dict><key>PATH</key><string>$SVC_PATH</string></dict>
   <key>WorkingDirectory</key><string>$REPO_DIR</string>
@@ -234,7 +235,9 @@ fi
 
 if command -v claude >/dev/null 2>&1 && confirm "Register the MCP server in Claude Code (user-wide)?"; then
   claude mcp remove -s user knowledge-mesh 2>/dev/null || true
-  claude mcp add -s user knowledge-mesh -- pnpm --dir "$REPO_DIR" mcp
+  # TMPDIR=/tmp: under a long TMPDIR (Paperclip agent runs) tsx's IPC socket path exceeds
+  # macOS's 104-char limit and the server dies with EADDRINUSE before the MCP handshake.
+  claude mcp add -s user knowledge-mesh -e TMPDIR=/tmp -- "$LAUNCHER" mcp
   ok "MCP server 'knowledge-mesh' registered (9 knowledge_* tools in every session)"
 fi
 
