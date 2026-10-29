@@ -199,11 +199,12 @@ if [ "$(uname)" = "Darwin" ] && confirm "Install background services (launchd: A
   CLAUDE_BIN_DIR="$(dirname "$(command -v claude 2>/dev/null || echo /usr/local/bin/claude)")"
   SVC_PATH="$CLAUDE_BIN_DIR:$NODE_BIN_DIR:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
   mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
-  for svc in api watcher extract; do
+  for svc in api watcher extract monitor; do
     case $svc in
       api)     ARGS="api";        EXTRA="<key>KeepAlive</key><true/>";;
       watcher) ARGS="index:watch"; EXTRA="<key>KeepAlive</key><true/>";;
       extract) ARGS="extract";    EXTRA="<key>StartInterval</key><integer>1800</integer>";;
+      monitor) ARGS="monitor";    EXTRA="<key>StartInterval</key><integer>3600</integer>";;
     esac
     PLIST="$HOME/Library/LaunchAgents/com.knowledge-mesh.$svc.plist"
     cat > "$PLIST" <<PLIST_EOF
@@ -225,7 +226,7 @@ PLIST_EOF
     launchctl bootout "gui/$(id -u)/com.knowledge-mesh.$svc" 2>/dev/null || true
     launchctl bootstrap "gui/$(id -u)/" "$PLIST"
   done
-  ok "services installed: API, watcher, scheduled extraction (logs in ~/Library/Logs/knowledge-mesh-*.log)"
+  ok "services installed: API, watcher, scheduled extraction, hourly health monitor (logs in ~/Library/Logs/knowledge-mesh-*.log)"
   echo -n "  waiting for the API"
   for _ in $(seq 1 30); do curl -s -m 2 "http://localhost:$API_PORT/health" >/dev/null 2>&1 && break; echo -n "."; sleep 1; done; echo
 else

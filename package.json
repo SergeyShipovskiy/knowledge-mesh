@@ -13,6 +13,7 @@
     "embed:load": "tsx scripts/embed-load-test.ts",
     "dedup": "tsx scripts/dedup-report.ts",
     "doctor": "tsx scripts/doctor.ts",
+    "monitor": "tsx scripts/monitor.ts",
     "stats": "tsx scripts/stats.ts",
     "backup": "bash scripts/backup.sh",
     "moc": "tsx scripts/generate-moc.ts",

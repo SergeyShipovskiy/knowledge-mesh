@@ -41,7 +41,8 @@ per-app docs in [docs/apps/](docs/apps/README.md); state/next in
 - `scripts/` — `install.sh` (interactive setup), `golden.ts` (retrieval evals;
   per-instance sets via `GOLDEN_CHECKS` / `scripts/golden-checks.json`),
   `dedup-report.ts` (near-duplicate clusters, folder-aware thresholds),
-  `doctor.ts` (health + vault hygiene), `stats.ts` (adoption metrics from
+  `doctor.ts` (health + vault hygiene), `monitor.ts` (hourly unattended
+  health check, notifies on macOS when a check flips), `stats.ts` (adoption metrics from
   `usage_events`; `--backfill <log>` imports history), `backup.sh`
   (laptop-friendly: hourly check, ≥20h rule, optional rclone offsite),
   `generate-moc.ts`.
@@ -69,7 +70,7 @@ per-app docs in [docs/apps/](docs/apps/README.md); state/next in
 - Changing the extractor prompt/schema requires `pnpm extract --force`
   (full re-extraction, ~25s/note on the user's Claude subscription — ask
   before triggering).
-- launchd services on this machine: `com.knowledge-mesh.{api,watcher,extract,backup}`,
+- launchd services on this machine: `com.knowledge-mesh.{api,watcher,extract,backup,monitor}`,
   logs in `~/Library/Logs/knowledge-mesh-*.log`.
 
 ## Conventions

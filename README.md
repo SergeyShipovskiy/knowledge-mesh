@@ -89,6 +89,7 @@ pnpm mcp            # MCP server (stdio); requires the API
 pnpm golden         # retrieval quality evaluation (13 checks)
 pnpm embed:load     # concurrent-load check on the embedding pool
 pnpm run doctor     # one-screen health report (vault, DBs, API, services, backups)
+pnpm monitor        # unattended health check; macOS notification when something breaks
 pnpm stats          # adoption metrics: who/what queries the shared memory
 pnpm backup         # manual backup (runs hourly via launchd; ≥20h freshness rule)
 ./scripts/restore.sh  # interactive restore: DB and/or vault, local or Google Drive
