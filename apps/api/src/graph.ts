@@ -10,13 +10,25 @@ export interface ResolvedEntity {
 
 /** Resolve a fuzzy name to an entity, preferring doc-backed and exact matches. */
 export async function resolveEntity(name: string): Promise<ResolvedEntity | null> {
+  // A wikilink to a bare name ([[order-handler-service]]) creates an empty
+  // placeholder entity with exactly that name. Ranking a plain exact match first
+  // let it shadow the real `purchase/order-handler-service` and return an empty
+  // impact, so a non-placeholder exact-or-suffix match must outrank it.
   const { rows } = await pool.query(
-    `SELECT id, type, name FROM entities
-     WHERE lower(replace(name, '/', '-')) = lower(replace($1, '/', '-'))
-        OR lower(replace(name, '/', '-')) LIKE '%-' || lower(replace($1, '/', '-'))
-        OR name ILIKE '%' || $1 || '%'
-     ORDER BY (lower(replace(name, '/', '-')) = lower(replace($1, '/', '-'))) DESC,
-              (lower(replace(name, '/', '-')) LIKE '%-' || lower(replace($1, '/', '-'))) DESC,
+    `WITH m AS (
+       SELECT id, type, name, document_id,
+              lower(replace(name, '/', '-')) = lower(replace($1, '/', '-')) AS exact,
+              lower(replace(name, '/', '-')) LIKE '%-' || lower(replace($1, '/', '-')) AS suffix,
+              coalesce((metadata->>'placeholder')::boolean, false) AS placeholder
+       FROM entities
+       WHERE lower(replace(name, '/', '-')) = lower(replace($1, '/', '-'))
+          OR lower(replace(name, '/', '-')) LIKE '%-' || lower(replace($1, '/', '-'))
+          OR name ILIKE '%' || $1 || '%'
+     )
+     SELECT id, type, name FROM m
+     ORDER BY ((exact OR suffix) AND NOT placeholder) DESC,
+              exact DESC,
+              suffix DESC,
               (document_id IS NOT NULL) DESC,
               length(name)
      LIMIT 1`,
