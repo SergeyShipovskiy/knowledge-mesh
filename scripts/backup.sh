@@ -12,8 +12,8 @@
 # launchd gotcha (macOS TCC): the job must NOT run as bare /bin/bash — bash
 # has no ~/Documents grant and tar dies with "Operation not permitted" on the
 # vault. The com.knowledge-mesh.backup plist wraps this script in
-# `node -e "execFileSync('/bin/bash', [...])"` so the job inherits node's
-# grant (the same one the watcher indexes the vault with).
+# `scripts/run.sh exec node -e "execFileSync('/bin/bash', [...])"` so the job
+# inherits node's grant (the same one the watcher indexes the vault with).
 #
 # Config via env (or .env in the repo root):
 #   BACKUP_DIR        default: ~/Backups/knowledge-mesh

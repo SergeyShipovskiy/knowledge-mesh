@@ -60,6 +60,10 @@ per-app docs in [docs/apps/](docs/apps/README.md); state/next in
 - **Run `pnpm golden` after any change to retrieval** (embeddings, search
   fusion, chunking, extraction prompt, graph queries). 13 checks must pass.
 - Typecheck: `pnpm -r exec tsc --noEmit`. No build step — apps run TS via tsx.
+- launchd services and the MCP server start via `scripts/run.sh`, which resolves
+  the Node version pinned in `.nvmrc`. Never point a plist or `~/.claude.json` at
+  a node/pnpm path directly. Upgrading Node = bump `.nvmrc`, kickstart the
+  services, approve the one-time macOS Documents prompt for the new binary.
 - After changing `apps/api` or `packages/shared`, restart the service:
   `launchctl kickstart -k gui/$UID/com.knowledge-mesh.api` (same for
   `.watcher`). MCP server changes need a `/mcp` reconnect in sessions.

@@ -58,7 +58,7 @@ vault — any folder of markdown notes works; [Obsidian](https://obsidian.md)
 | Requirement | Notes |
 | --- | --- |
 | macOS (Apple Silicon tested) | Background services use launchd; Linux works with systemd units instead |
-| Node.js ≥ 20 + pnpm ≥ 9 | runtime for all apps |
+| Node.js (version in `.nvmrc`) + pnpm ≥ 9 | runtime for all apps; services and the MCP server start via `scripts/run.sh`, which picks that version |
 | PostgreSQL ≥ 14 + pgvector | operational store + hybrid search |
 | Neo4j ≥ 5 (brew) | graph projection — disposable, rebuildable |
 | Claude Code CLI (`claude`) | the extractor's LLM engine (subscription; no API key needed) |
