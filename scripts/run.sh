@@ -39,4 +39,8 @@ fi
 command -v pnpm >/dev/null 2>&1 ||
   die "pnpm is not installed for node $(node --version). Install it: PATH=$(dirname "$(command -v node)"):\$PATH npm install -g pnpm"
 
+# Claude Code starts the MCP server from whatever project is open. corepack's pnpm shim checks
+# the packageManager field of the cwd's package.json, not --dir, and refuses to run inside a
+# yarn project, so the cwd must be this repo.
+cd "$REPO_DIR"
 exec pnpm --dir "$REPO_DIR" "$@"
